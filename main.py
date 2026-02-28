@@ -1,7 +1,8 @@
 import os
-import sys
 from dotenv import load_dotenv
 from src.scanner import FastScanner
+from src.vuln_checker import VulnChecker
+from src.banner_grabber import grab_banner
 from prettytable import PrettyTable
 
 load_dotenv()
@@ -9,10 +10,11 @@ load_dotenv()
 def main():
     target = os.getenv("TARGET_IP")
     threads = int(os.getenv("THREADS"))
+    checker = VulnChecker()
 
-    print("\n" + "="*40)
+    print("\n" + "=" * 60)
     print("🔥 VULTRON: VULNERABILITY & RECON ENGINE 🔥")
-    print("="*40 + "\n")
+    print("=" * 60)
 
     scanner = FastScanner(target, threads)
     open_ports = scanner.run(port_range=(50, 9000))
@@ -21,11 +23,16 @@ def main():
         print("❌ No open ports found. Check target IP or network.")
         return
 
-    table = PrettyTable(["Port", "Status", "Service"])
-    for port in open_ports:
-        table.add_row([port, "OPEN", "Analyzing..."])
+    table = PrettyTable(["Port", "Status", "Banner", "Security Report"])
+    table.align["Security Report"] = "l"
 
-    print(table)
+    for port in open_ports:
+        print(f"📡 Analyzing port {port}...")
+        banner = grab_banner(target, port)
+        vuln_status = checker.check_vulnerability(banner)
+        table.add_row([port, "OPEN", banner, vuln_status])
+
+    print("\n" + str(table))
 
 
 if __name__ == "__main__":

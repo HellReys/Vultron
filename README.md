@@ -1,6 +1,6 @@
-# Vultron: Automated Vulnerability & Recon Engine
+#Automated Vulnerability & Recon Engine
 
-**Vultron** is a high speed, multi threaded vulnerability scanner designed to perform automated reconnaissance on target systems. It doesn't just find open ports; it identifies the services running on them and maps their versions to known security vulnerabilities (CVEs).
+**HellReys-Vultron** is a high speed, multi threaded vulnerability scanner designed to perform automated reconnaissance on target systems. It doesn't just find open ports; it identifies the services running on them and maps their versions to known security vulnerabilities (CVEs).
 
 
 

@@ -14,7 +14,7 @@
 
 ##  Project Architecture
 
-* **`src/scanner.py`**: The high-performance engine responsible for discovering open TCP ports.
+* **`src/scanner.py`**: The high performance engine responsible for discovering open TCP ports.
 * **`src/banner_grabber.py`**: The "Recon" module that interacts with open ports to extract service information.
 * **`src/vuln_checker.py`**: The logic engine that maps service strings to a database of known security threats (CVEs).
 * **`main.py`**: The orchestrator that manages the workflow and environment configuration.
@@ -28,8 +28,8 @@
 ### 2. Setup
 ```bash
 # Clone the repository
-git clone https://github.com/HellReys/Vultron-Automated-Vulnerability-and-Recon-Engine
-cd Vultron-Automated-Vulnerability-and-Recon-Engine
+git clone https://github.com/HellReys/Vultron.git
+cd Vultron
 
 # Install dependencies
 pip install -r requirements.txt

@@ -13,7 +13,7 @@ def main():
     checker = VulnChecker()
 
     print("\n" + "=" * 60)
-    print("🔥 VULTRON: VULNERABILITY & RECON ENGINE 🔥")
+    print("🔥 VULTRON 🔥")
     print("=" * 60)
 
     scanner = FastScanner(target, threads)

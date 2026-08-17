@@ -1,4 +1,6 @@
-# Automated Vulnerability & Recon Engine
+# Vultron
+
+### Automated Vulnerability & Recon Engine
 
 **Vultron** is a high speed, multi threaded vulnerability scanner designed to perform automated reconnaissance on target systems. It doesn't just find open ports; it identifies the services running on them and maps their versions to known security vulnerabilities (CVEs).
 
@@ -36,12 +38,12 @@ pip install -r requirements.txt
 ```
 ### 3. Configuration
 Create a .env file in the root directory: You can find the example of .env file(.env.example)
-```
+```bash
 TARGET_IP=127.0.0.1  # Or target hostname like scanme.nmap.org
 THREADS=100
 ```
 ### 4. Run
-```
+```bash
 python3 main.py
 ```
 

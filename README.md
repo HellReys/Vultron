@@ -8,16 +8,16 @@
 
 ##  Key Features
 
-* **Multi-threaded Port Scanning:** Leverages Python's `threading` and `socket` libraries to scan thousands of ports.
+* **Multi-threaded Port Scanning:** Uses `ThreadPoolExecutor` and `socket` to perform concurrent TCP port scanning.
 * **Service Fingerprinting:** Performs "Banner Grabbing" to identify the software and version (e.g., Apache 2.4.41, OpenSSH 7.4) running on open ports.
-* **Vulnerability Mapping:** Automatically compares detected service versions against a local vulnerability database to flag critical risks.
+* **Vulnerability Mapping:** Automatically compares detected service versions against a NVD API to flag critical risks.
 * **Smart Probing:** Uses fallback HTTP probes to identify silent services that don't reveal their identity immediately.
-* **Clean Reporting:** Generates a structured security report using `PrettyTable` for clear visibility.
+* **Clean Reporting:** Displays scan results in a formatted terminal table and exports detailed results as JSON.
 * **Check Dependencies:** Auto check dependencies using `requirements.txt` file.
 
 ##  Project Architecture
 
-* **`src/reporter.py`**: It allows you to print out as JSON.
+* **`src/reporter.py`**: Formats scan results for console output and exports them as JSON reports.
 * **`src/scanner.py`**: The high performance engine responsible for discovering open TCP ports.
 * **`src/banner_grabber.py`**: The "Recon" module that interacts with open ports to extract service information.
 * **`src/vuln_checker.py`**: The logic engine that maps service strings to a database of known security threats (CVEs).

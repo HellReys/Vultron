@@ -1,5 +1,5 @@
 import os
-import pkg_resources
+from importlib.metadata import version, PackageNotFoundError
 import sys
 from dotenv import load_dotenv
 from src.scanner import FastScanner
@@ -36,16 +36,22 @@ def main():
 
     print("\n" + str(table))
 
+
 def check_requirements(requirements_file="requirements.txt"):
     try:
         with open(requirements_file, "r", encoding="utf-8") as f:
-            requirements = pkg_resources.parse_requirements(f)
-        missing_packages = []
-        for req in requirements:
-            try:
-                pkg_resources.require(str(req))
-            except (pkg_resources.DistributionNotFound, pkg_resources.VersionConflict):
-                missing_packages.append(req.name)
+            missing_packages = []
+            for line in f:
+                line = line.strip()
+                if not line or line.startswith("#"):
+                    continue
+                pkg_name = line.split("==")[0].split(">=")[0].split("<=")[0].strip()
+
+                try:
+                    version(pkg_name)
+                except PackageNotFoundError:
+                    missing_packages.append(pkg_name)
+
         if missing_packages:
             print("\n❌ [ERROR] Missing Python dependencies detected:")
             for pkg in missing_packages:

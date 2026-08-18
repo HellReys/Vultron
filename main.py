@@ -5,9 +5,10 @@ from dotenv import load_dotenv
 from src.scanner import FastScanner
 from src.vuln_checker import VulnChecker
 from src.banner_grabber import grab_banner
-from prettytable import PrettyTable
+from src.reporter import ScanReporter
 
 load_dotenv()
+
 
 def main():
     target = os.getenv("TARGET_IP")
@@ -25,16 +26,23 @@ def main():
         print("❌ No open ports found. Check target IP or network.")
         return
 
-    table = PrettyTable(["Port", "Status", "Banner", "Security Report"])
-    table.align["Security Report"] = "l"
+    scan_results = []
 
     for port in open_ports:
         print(f"📡 Analyzing port {port}...")
         banner = grab_banner(target, port)
         vuln_status = checker.check_vulnerability(banner)
-        table.add_row([port, "OPEN", banner, vuln_status])
 
-    print("\n" + str(table))
+        scan_results.append({
+            "port": port,
+            "status": "OPEN",
+            "banner": banner,
+            "vulnerability": vuln_status
+        })
+
+    reporter = ScanReporter(target)
+    reporter.print_console_report(scan_results)
+    reporter.export_to_json(scan_results)
 
 
 def check_requirements(requirements_file="requirements.txt"):

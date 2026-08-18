@@ -1,5 +1,5 @@
 import os
-import shutil
+import pkg_resources
 import sys
 from dotenv import load_dotenv
 from src.scanner import FastScanner
@@ -36,18 +36,30 @@ def main():
 
     print("\n" + str(table))
 
-def check_dependencies():
-    tools = ["requests", "prettytable", "python-dotenv"]
-    missing_tools = []
-    for tool in tools:
-        if not shutil.which(tool):
-            missing_tools.append(tool)
+def check_requirements(requirements_file="requirements.txt"):
+    try:
+        with open(requirements_file, "r", encoding="utf-8") as f:
+            requirements = pkg_resources.parse_requirements(f)
+        missing_packages = []
+        for req in requirements:
+            try:
+                pkg_resources.require(str(req))
+            except (pkg_resources.DistributionNotFound, pkg_resources.VersionConflict):
+                missing_packages.append(req.name)
+        if missing_packages:
+            print("\n❌ [ERROR] Missing Python dependencies detected:")
+            for pkg in missing_packages:
+                print(f"   - {pkg}")
+            print(f"\n💡 Please install missing packages by running:\n   pip install -r {requirements_file}\n")
+            sys.exit(1)
 
-    if missing_tools:
-        for tool in missing_tools:
-            print(f"❌ [ERROR] {tool.capitalize()} is not installed. Please install {tool} to proceed.")
-        sys.exit(1)
+    except FileNotFoundError:
+        print(f"⚠️ [WARNING] {requirements_file} not found. Skipping dependency check.")
+    except Exception as e:
+        print(f"⚠️ [WARNING] An error occurred while checking requirements: {e}")
+
+
 
 if __name__ == "__main__":
-    check_dependencies()
+    check_requirements()
     main()

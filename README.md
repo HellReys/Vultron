@@ -13,6 +13,7 @@
 * **Vulnerability Mapping:** Automatically compares detected service versions against a local vulnerability database to flag critical risks.
 * **Smart Probing:** Uses fallback HTTP probes to identify silent services that don't reveal their identity immediately.
 * **Clean Reporting:** Generates a structured security report using `PrettyTable` for clear visibility.
+* **Check Dependencies:** Auto check dependencies using `requirements.txt` file.
 
 ##  Project Architecture
 

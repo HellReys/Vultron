@@ -1,4 +1,6 @@
 import os
+import shutil
+import sys
 from dotenv import load_dotenv
 from src.scanner import FastScanner
 from src.vuln_checker import VulnChecker
@@ -34,6 +36,18 @@ def main():
 
     print("\n" + str(table))
 
+def check_dependencies():
+    tools = ["requests", "prettytable", "python-dotenv"]
+    missing_tools = []
+    for tool in tools:
+        if not shutil.which(tool):
+            missing_tools.append(tool)
+
+    if missing_tools:
+        for tool in missing_tools:
+            print(f"❌ [ERROR] {tool.capitalize()} is not installed. Please install {tool} to proceed.")
+        sys.exit(1)
 
 if __name__ == "__main__":
+    check_dependencies()
     main()

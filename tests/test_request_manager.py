@@ -122,5 +122,28 @@ class TestRequestManager(unittest.TestCase):
             )
 
 
+    def test_encoded_control_blocked(self):
+        with self.assertRaises(ValueError):
+            self.manager.prepare(
+                "https://example.com/%0d%0aInjected"
+            )
+
+    def test_invalid_authority_blocked(self):
+        with self.assertRaises(ValueError):
+            self.manager.prepare(
+                "https://example.com:/"
+            )
+
+    def test_valid_encoded_query(self):
+        plan = self.manager.prepare(
+            "https://example.com/search?q=hello%20world"
+        )
+
+        self.assertEqual(
+            plan.hostname,
+            "example.com"
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

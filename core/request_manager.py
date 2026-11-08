@@ -3,6 +3,7 @@ from dataclasses import dataclass
 from urllib.parse import urlsplit
 
 from core.rate_limiter import RateLimiter
+from core.url_validator import validate_http_url
 
 
 @dataclass(frozen=True)
@@ -32,6 +33,7 @@ class RequestManager:
         self.rate_limiter = rate_limiter
 
 
+
     def prepare(self, url, method="GET"):
         """Validate a request without sending it."""
 
@@ -40,11 +42,10 @@ class RequestManager:
                 "Active scanning is disabled by program policy."
             )
 
-        if not isinstance(url, str):
-            raise ValueError("URL must be a string.")
-
         if not isinstance(method, str):
-            raise ValueError("HTTP method must be a string.")
+            raise ValueError(
+                "HTTP method must be a string."
+            )
 
         method = method.upper()
 
@@ -53,49 +54,20 @@ class RequestManager:
                 f"HTTP method '{method}' is not permitted."
             )
 
-        if (
-            not url
-            or any(ord(char) <= 32 or ord(char) == 127 for char in url)
-            or "\\" in url
-        ):
-            raise ValueError("URL contains invalid characters.")
+        # Validate URL structure before checking scope.
+        parsed = validate_http_url(url)
 
-        try:
-            parsed = urlsplit(url)
+        allowed, reason = self.policy.check_url(url)
 
-            allowed, reason = self.policy.check_url(url)
+        if not allowed:
+            raise PermissionError(reason)
 
-            if not allowed:
-                raise PermissionError(reason)
+        return RequestPlan(
+            method=method,
+            url=url,
+            hostname=parsed.hostname
+        )
 
-            # Only standard HTTP and HTTPS ports for now.
-            standard_port = (
-                443 if parsed.scheme == "https" else 80
-            )
-
-            if (
-                parsed.port is not None
-                and parsed.port != standard_port
-            ):
-                raise PermissionError(
-                    "Non-standard ports are not supported yet."
-                )
-
-            if parsed.fragment:
-                raise ValueError(
-                    "URL fragments are not supported."
-                )
-
-            return RequestPlan(
-                method=method,
-                url=url,
-                hostname=parsed.hostname
-            )
-
-        except ValueError as error:
-            raise ValueError(
-                f"Invalid request URL: {error}"
-            ) from error
 
     @contextmanager
     def permit(self, url, method="GET"):

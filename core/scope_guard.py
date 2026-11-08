@@ -70,6 +70,20 @@ class ScopeGuard:
 
         return host == rule
 
+
+    def is_excluded(self, host):
+        """Check whether a host or IP is explicitly excluded."""
+        try:
+            host = self._normalize_host(host)
+        except (ValueError, AttributeError):
+            return True
+
+        return any(
+            self._matches(host, rule)
+            for rule in self.excluded
+        )
+
+
     def check_host(self, host):
         try:
             host = self._normalize_host(host)

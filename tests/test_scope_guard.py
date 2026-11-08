@@ -49,5 +49,17 @@ class TestScopeGuard(unittest.TestCase):
         self.assertFalse(allowed)
 
 
+    def test_explicit_exclusion_check(self):
+        self.assertTrue(
+            self.guard.is_excluded("admin.example.com")
+        )
+
+    def test_non_excluded_host(self):
+        self.assertFalse(
+            self.guard.is_excluded("api.example.com")
+        )
+
+
+
 if __name__ == "__main__":
     unittest.main()

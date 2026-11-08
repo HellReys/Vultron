@@ -77,8 +77,10 @@ class HTTPTransport:
         timeout=5.0,
         max_response_bytes=262144,
         http_factory=PinnedHTTPConnection,
-        https_factory=PinnedHTTPSConnection
+        https_factory=PinnedHTTPSConnection,
+        request_manager=None
     ):
+
         if (
             type(timeout) not in (int, float)
             or not 0 < timeout <= 60
@@ -91,7 +93,25 @@ class HTTPTransport:
         ):
             raise ValueError("Invalid response size limit.")
 
-        self.request_manager = RequestManager(policy)
+
+        if request_manager is not None:
+            if not isinstance(request_manager, RequestManager):
+                raise TypeError(
+                    "request_manager must be a RequestManager instance."
+                )
+
+            if request_manager.policy is not policy:
+                raise ValueError(
+                    "RequestManager and HTTPTransport must "
+                    "use the same policy instance."
+                )
+
+        self.request_manager = (
+            request_manager
+            if request_manager is not None
+            else RequestManager(policy)
+        )
+
         self.connection_guard = ConnectionGuard(
             policy,
             resolver=resolver

@@ -19,13 +19,18 @@ class RequestManager:
 
     ALLOWED_METHODS = {"GET", "HEAD"}
 
-    def __init__(self, policy):
+
+    def __init__(self, policy, rate_limiter=None):
         self.policy = policy
 
-        self.rate_limiter = RateLimiter(
-            requests_per_second=policy.requests_per_second,
-            max_concurrent_requests=policy.max_concurrent_requests
-        )
+        if rate_limiter is None:
+            rate_limiter = RateLimiter(
+                requests_per_second=policy.requests_per_second,
+                max_concurrent_requests=policy.max_concurrent_requests
+            )
+
+        self.rate_limiter = rate_limiter
+
 
     def prepare(self, url, method="GET"):
         """Validate a request without sending it."""

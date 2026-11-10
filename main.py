@@ -1,92 +1,139 @@
-import os
-from importlib.metadata import version, PackageNotFoundError
+import argparse
 import sys
-from dotenv import load_dotenv
-from src.scanner import FastScanner
-from src.vuln_checker import VulnChecker
-from src.banner_grabber import grab_banner
-from src.reporter import ScanReporter
 
-# Load environment variables from .env
-load_dotenv()
+from core.config_manager import ConfigurationManager
+from core.policy_engine import PolicyEngine
+from core.program_context import ProgramContext
+from core.scan_orchestrator import ScanOrchestrator
 
 
-def main():
-    # Read the target and thread count from the environment
-    target = os.getenv("TARGET_IP")
-    threads = int(os.getenv("THREADS"))
-    checker = VulnChecker()
+def create_parser():
+    parser = argparse.ArgumentParser(
+        prog="vultron",
+        description=(
+            "Vultron - Policy-controlled security scanner"
+        )
+    )
+
+    parser.add_argument(
+        "--program",
+        required=True,
+        help="Path to an authorized program YAML file."
+    )
+
+    parser.add_argument(
+        "--target",
+        required=True,
+        help="Target hostname or IP address."
+    )
+
+    parser.add_argument(
+        "--settings",
+        default="config/settings.yaml",
+        help="Path to global application settings."
+    )
+
+    return parser
+
+
+def run_scan(program_path, target, settings_path):
+    """
+    Run a scan through the validated program context.
+
+    No direct socket connections are made here.
+    """
+
+    settings = ConfigurationManager(
+        settings_path
+    ).load()
+
+    policy = PolicyEngine(program_path)
 
     print("\n" + "=" * 60)
-    print("🔥 VULTRON 🔥")
+    print(f"  {settings.app.name.upper()}")
     print("=" * 60)
 
-    # Start the port scan
-    scanner = FastScanner(target, threads)
-    open_ports = scanner.run(port_range=(50, 9000))
+    # Reject disabled or unauthorized scanning.
+    if not policy.can_scan():
+        raise PermissionError(
+            "Scanning is disabled or authorization "
+            "has not been confirmed."
+        )
 
-    # Stop if no open ports were found
-    if not open_ports:
-        print("❌ No open ports found. Check target IP or network.")
-        return
+    tcp_policy = policy.tcp_policy
 
-    scan_results = []
+    if not tcp_policy.enabled:
+        raise PermissionError(
+            "TCP scanning is disabled by program policy."
+        )
 
-    # Gather banner and vulnerability information for each port
-    for port in open_ports:
-        print(f"📡 Analyzing port {port}...")
-        banner = grab_banner(target, port)
-        vuln_status = checker.check_vulnerability(banner)
+    if not tcp_policy.allowed_ports:
+        raise PermissionError(
+            "No authorized TCP ports are configured."
+        )
 
-        scan_results.append({
-            "port": port,
-            "status": "OPEN",
-            "banner": banner,
-            "vulnerability": vuln_status
-        })
+    context = ProgramContext(
+        policy=policy,
+        settings=settings
+    )
 
-    # Print the results and save a JSON report
-    reporter = ScanReporter(target)
-    reporter.print_console_report(scan_results)
-    reporter.export_to_json(scan_results)
+    orchestrator = ScanOrchestrator(context)
+
+    print(f"[TARGET] {target}")
+    print(
+        "[PORTS] "
+        + ", ".join(
+            str(port)
+            for port in tcp_policy.allowed_ports
+        )
+    )
+
+    summary = orchestrator.scan_tcp(target)
+
+    print("\n[SCAN COMPLETED]")
+    print(
+        f"Connection results: "
+        f"{summary.attempted_connections}"
+    )
+
+    print(f"Open ports: {len(summary.open_ports)}")
+
+    for port in summary.open_ports:
+        print(f"  [OPEN] {port}")
+
+    print(
+        f"TCP budget used: "
+        f"{context.tcp_budget.used}/"
+        f"{context.tcp_budget.max_requests}"
+    )
+
+    return summary
 
 
-def check_requirements(requirements_file="requirements.txt"):
+def main(argv=None):
+    parser = create_parser()
+    args = parser.parse_args(argv)
+
     try:
-        # Check which packages are listed in the requirements file
-        with open(requirements_file, "r", encoding="utf-8") as f:
-            missing_packages = []
-            for line in f:
-                line = line.strip()
-                # Skip empty lines and comments
-                if not line or line.startswith("#"):
-                    continue
+        run_scan(
+            program_path=args.program,
+            target=args.target,
+            settings_path=args.settings
+        )
 
-                # Remove version constraints from the package name
-                pkg_name = line.split("==")[0].split(">=")[0].split("<=")[0].strip()
+    except (
+        PermissionError,
+        ValueError,
+        OSError
+    ) as error:
+        print(
+            f"[ERROR] {error}",
+            file=sys.stderr
+        )
+        return 1
 
-                try:
-                    version(pkg_name)
-                except PackageNotFoundError:
-                    missing_packages.append(pkg_name)
-
-        # Stop the program if required packages are missing
-        if missing_packages:
-            print("\n❌ [ERROR] Missing Python dependencies detected:")
-            for pkg in missing_packages:
-                print(f"   - {pkg}")
-            print(f"\n💡 Please install missing packages by running:\n   pip install -r {requirements_file}\n")
-            sys.exit(1)
-
-    except FileNotFoundError:
-        # Continue if no requirements file is available
-        print(f"⚠️ [WARNING] {requirements_file} not found. Skipping dependency check.")
-    except Exception as e:
-        # Show unexpected errors without hiding the actual problem
-        print(f"⚠️ [WARNING] An error occurred while checking requirements: {e}")
-
+    return 0
 
 
 if __name__ == "__main__":
-    check_requirements()
-    main()
+    sys.exit(main())

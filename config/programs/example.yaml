@@ -1,6 +1,3 @@
-# Example bug bounty policy for Vultron.
-# This configuration is for development and testing only.
-
 program:
   name: "Example Security Program"
 
@@ -16,7 +13,6 @@ scope:
 scanning:
   enabled: false
   authorization_confirmed: false
-
   requests_per_second: 2
   max_concurrent_requests: 2
   max_requests: 500
@@ -25,13 +21,10 @@ headers:
   User-Agent: "Vultron/0.1"
   X-Bug-Bounty-Researcher: "example-researcher"
 
-  # TCP scanning is disabled by default.
-  # Ports and limits below are examples, not real authorization.
-
-  tcp_scanning:
-    enabled: false
-    allowed_ports:
-      - 80
-      - 443
-    connections_per_second: 2
-    max_connections: 20
+tcp_scanning:
+  enabled: false
+  allowed_ports:
+    - 80
+    - 443
+  connections_per_second: 2
+  max_connections: 20

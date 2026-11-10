@@ -8,6 +8,7 @@ from urllib.parse import urlsplit
 from core.connection_guard import ConnectionGuard
 from core.request_manager import RequestManager
 from core.header_manager import HeaderManager
+from core.request_deadline import RequestDeadline
 
 
 class PinnedHTTPConnection(http.client.HTTPConnection):
@@ -18,9 +19,17 @@ class PinnedHTTPConnection(http.client.HTTPConnection):
         self.pinned_ip = pinned_ip
 
     def connect(self):
+        deadline = getattr(self, "deadline", None)
+
+        timeout = (
+            deadline.socket_timeout(self.timeout)
+            if deadline is not None
+            else self.timeout
+        )
+
         self.sock = socket.create_connection(
             (self.pinned_ip, self.port),
-            timeout=self.timeout,
+            timeout=timeout,
             source_address=self.source_address
         )
 
@@ -38,17 +47,31 @@ class PinnedHTTPSConnection(http.client.HTTPSConnection):
         self.pinned_ip = pinned_ip
 
     def connect(self):
+        deadline = getattr(self, "deadline", None)
+
+        timeout = (
+            deadline.socket_timeout(self.timeout)
+            if deadline is not None
+            else self.timeout
+        )
+
         raw_socket = socket.create_connection(
             (self.pinned_ip, self.port),
-            timeout=self.timeout,
+            timeout=timeout,
             source_address=self.source_address
         )
 
         try:
+            if deadline is not None:
+                raw_socket.settimeout(
+                    deadline.socket_timeout(self.timeout)
+                )
+
             self.sock = self._context.wrap_socket(
                 raw_socket,
                 server_hostname=self.host
             )
+
         except Exception:
             raw_socket.close()
             raise
@@ -126,27 +149,83 @@ class HTTPTransport:
         self.http_factory = http_factory
         self.https_factory = https_factory
 
+    @staticmethod
+    def _set_remaining_timeout(connection, deadline):
+        remaining = deadline.remaining()
+
+        if connection.sock is not None:
+            connection.sock.settimeout(remaining)
+
+    def _read_response_body(
+        self,
+        response,
+        connection,
+        deadline
+    ):
+        """
+        Read a bounded response body with a shared deadline.
+
+        Real HTTPResponse objects use incremental read1().
+        Test doubles retain their existing read() interface.
+        """
+
+        if not isinstance(response, http.client.HTTPResponse):
+            body = response.read(self.max_response_bytes + 1)
+            deadline.remaining()
+
+            return (
+                body[:self.max_response_bytes],
+                len(body) > self.max_response_bytes
+            )
+
+        chunks = []
+        total = 0
+        read_limit = self.max_response_bytes + 1
+
+        while total < read_limit:
+            self._set_remaining_timeout(
+                connection,
+                deadline
+            )
+
+            chunk = response.read1(
+                min(16384, read_limit - total)
+            )
+
+            deadline.remaining()
+
+            if not chunk:
+                break
+
+            chunks.append(chunk)
+            total += len(chunk)
+
+        body = b"".join(chunks)
+
+        return (
+            body[:self.max_response_bytes],
+            len(body) > self.max_response_bytes
+        )
+
     def request(self, url, method="GET"):
-        """Send one checked HTTP request with no redirect following."""
+        """Send one policy checked HTTP request with a deadline."""
 
         with self.request_manager.permit(url, method) as plan:
             connection_plan = self.connection_guard.resolve(
                 plan.hostname
             )
 
-            # Revalidate before creating the connection.
             plan = self.request_manager.prepare(
                 plan.url,
                 plan.method
             )
 
             parsed = urlsplit(plan.url)
+
             hostname = parsed.hostname
             is_https = parsed.scheme == "https"
             port = 443 if is_https else 80
 
-            # All DNS addresses were validated by ConnectionGuard.
-            # Use one validated IP, not a new hostname lookup.
             pinned_ip = connection_plan.addresses[0]
 
             factory = (
@@ -167,28 +246,37 @@ class HTTPTransport:
             if parsed.query:
                 path += "?" + parsed.query
 
+            # The network-phase deadline starts here.
+            deadline = RequestDeadline(self.timeout)
+            connection.deadline = deadline
+
             try:
+                deadline.remaining()
+
                 connection.request(
                     method=plan.method,
                     url=path,
                     headers=self.headers
                 )
 
+                self._set_remaining_timeout(
+                    connection,
+                    deadline
+                )
+
                 response = connection.getresponse()
+
+                deadline.remaining()
 
                 headers = tuple(response.getheaders())
 
-                # Read only a bounded amount of response data.
-                body = response.read(
-                    self.max_response_bytes + 1
+                body, truncated = self._read_response_body(
+                    response,
+                    connection,
+                    deadline
                 )
 
-                truncated = (
-                    len(body) > self.max_response_bytes
-                )
-
-                if truncated:
-                    body = body[:self.max_response_bytes]
+                deadline.remaining()
 
                 return TransportResponse(
                     url=plan.url,

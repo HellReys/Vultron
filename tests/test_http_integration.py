@@ -1,6 +1,7 @@
 import socket
 import threading
 import unittest
+import time
 
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from unittest.mock import patch
@@ -94,6 +95,30 @@ class LocalHandler(BaseHTTPRequestHandler):
 
         elif self.path == "/large":
             self.respond(200, b"A" * 1024)
+
+
+
+        elif self.path == "/slow":
+
+            time.sleep(0.3)
+
+            try:
+
+                self.respond(200, b"Delayed response")
+
+            except (
+
+                    BrokenPipeError,
+
+                    ConnectionResetError,
+
+                    ConnectionAbortedError
+
+            ):
+
+                # Expected when the client closes a timed-out connection.
+
+                pass
 
         else:
             self.respond(404, b"Not Found")
@@ -234,6 +259,22 @@ class TestHTTPIntegration(unittest.TestCase):
 
         self.assertEqual(result.status, 200)
         self.assertEqual(result.body, b"")
+
+    def test_response_header_timeout(self):
+        transport = HTTPTransport(
+            FakePolicy(),
+            resolver=fake_resolver,
+            timeout=0.1
+        )
+
+        with patch(
+            "core.http_transport.socket.create_connection",
+            side_effect=self.local_connection
+        ):
+            with self.assertRaises(TimeoutError):
+                transport.request(
+                    "http://api.example.com/slow"
+                )
 
 
 if __name__ == "__main__":

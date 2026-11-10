@@ -1,0 +1,9 @@
+# Vultron global configuration.
+# Program specific rules belong in config/programs/.
+
+app:
+  name: "Vultron"
+
+http:
+  timeout: 5.0
+  max_response_bytes: 262144

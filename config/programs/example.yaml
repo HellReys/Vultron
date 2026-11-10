@@ -1,5 +1,5 @@
-# Example configuration for Vultron.
-# This is not an actual bug bounty authorization.
+# Example bug bounty policy for Vultron.
+# This configuration is for development and testing only.
 
 program:
   name: "Example Security Program"
@@ -17,7 +17,9 @@ scanning:
   enabled: false
   authorization_confirmed: false
 
-  # Example limits only.
-  # Replace with the actual program requirements.
   requests_per_second: 2
   max_concurrent_requests: 2
+
+headers:
+  User-Agent: "Vultron/0.1"
+  X-Bug-Bounty-Researcher: "example-researcher"

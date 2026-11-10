@@ -2,6 +2,7 @@ from pathlib import Path
 
 import yaml
 
+from core.header_manager import HeaderManager
 from core.scope_guard import ScopeGuard
 
 
@@ -26,14 +27,22 @@ class PolicyEngine:
         )
 
         self.scanning_enabled = scanning["enabled"]
+
         self.authorization_confirmed = scanning[
             "authorization_confirmed"
         ]
 
-        self.requests_per_second = scanning["requests_per_second"]
+        self.requests_per_second = scanning[
+            "requests_per_second"
+        ]
+
         self.max_concurrent_requests = scanning[
             "max_concurrent_requests"
         ]
+
+        self.headers = HeaderManager(
+            self.config.get("headers", {})
+        ).build()
 
     def _load_config(self):
         try:
@@ -55,14 +64,17 @@ class PolicyEngine:
         return config
 
     @staticmethod
-    def _check_fields(data, required, section):
+    def _check_fields(data, required, section, optional=None):
         if not isinstance(data, dict):
             raise ValueError(
                 f"'{section}' must be a mapping."
             )
 
-        missing = set(required) - set(data)
-        unknown = set(data) - set(required)
+        required = set(required)
+        optional = set(optional or [])
+
+        missing = required - set(data)
+        unknown = set(data) - required - optional
 
         if missing:
             raise ValueError(
@@ -78,17 +90,26 @@ class PolicyEngine:
         self._check_fields(
             self.config,
             {"program", "scope", "scanning"},
-            "root"
+            "root",
+            optional={"headers"}
         )
 
         program = self.config["program"]
         scope = self.config["scope"]
         scanning = self.config["scanning"]
 
-        self._check_fields(program, {"name"}, "program")
         self._check_fields(
-            scope, {"allowed", "excluded"}, "scope"
+            program,
+            {"name"},
+            "program"
         )
+
+        self._check_fields(
+            scope,
+            {"allowed", "excluded"},
+            "scope"
+        )
+
         self._check_fields(
             scanning,
             {
@@ -104,7 +125,9 @@ class PolicyEngine:
             not isinstance(program["name"], str)
             or not program["name"].strip()
         ):
-            raise ValueError("Program name must be non-empty.")
+            raise ValueError(
+                "Program name must be non-empty."
+            )
 
         for field in ("allowed", "excluded"):
             entries = scope[field]
@@ -123,7 +146,9 @@ class PolicyEngine:
                 )
 
         if not scope["allowed"]:
-            raise ValueError("Allowed scope cannot be empty.")
+            raise ValueError(
+                "Allowed scope cannot be empty."
+            )
 
         for field in ("enabled", "authorization_confirmed"):
             if type(scanning[field]) is not bool:
@@ -156,6 +181,10 @@ class PolicyEngine:
                 "confirmed authorization."
             )
 
+        HeaderManager(
+            self.config.get("headers", {})
+        ).build()
+
     def check_host(self, host):
         return self.scope_guard.check_host(host)
 
@@ -163,7 +192,6 @@ class PolicyEngine:
         return self.scope_guard.check_url(url)
 
     def can_scan(self):
-        """Return whether active scanning is configured as permitted."""
         return (
             self.scanning_enabled
             and self.authorization_confirmed

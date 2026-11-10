@@ -188,6 +188,27 @@ class TestHTTPTransport(unittest.TestCase):
 
         self.factory.assert_not_called()
 
+    def test_default_headers_sent(self):
+        self.transport.request(
+            "https://example.com/"
+        )
+
+        kwargs = self.connection.request.call_args.kwargs
+        headers = kwargs["headers"]
+
+        self.assertEqual(
+            headers["User-Agent"],
+            "Vultron/0.1"
+        )
+
+        self.assertEqual(
+            headers["Accept"],
+            "*/*"
+        )
+
+        self.assertNotIn("Host", headers)
+        self.assertNotIn("Content-Length", headers)
+
 
 class TestPinnedConnections(unittest.TestCase):
 

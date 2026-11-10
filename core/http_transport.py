@@ -7,6 +7,7 @@ from urllib.parse import urlsplit
 
 from core.connection_guard import ConnectionGuard
 from core.request_manager import RequestManager
+from core.header_manager import HeaderManager
 
 
 class PinnedHTTPConnection(http.client.HTTPConnection):
@@ -119,6 +120,9 @@ class HTTPTransport:
 
         self.timeout = timeout
         self.max_response_bytes = max_response_bytes
+        self.headers = HeaderManager(
+            getattr(policy, "headers", {})
+        ).build()
         self.http_factory = http_factory
         self.https_factory = https_factory
 
@@ -167,11 +171,7 @@ class HTTPTransport:
                 connection.request(
                     method=plan.method,
                     url=path,
-                    headers={
-                        "User-Agent": "Vultron/0.1",
-                        "Accept": "*/*",
-                        "Connection": "close"
-                    }
+                    headers=self.headers
                 )
 
                 response = connection.getresponse()

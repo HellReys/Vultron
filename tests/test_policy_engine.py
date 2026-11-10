@@ -115,6 +115,30 @@ class TestPolicyEngine(unittest.TestCase):
         with self.assertRaises(ValueError):
             PolicyEngine(self.config_path)
 
+    def test_custom_headers_loaded(self):
+        self.config["headers"] = {
+            "X-Bug-Bounty-Researcher": "test-user"
+        }
+
+        self.save_config()
+
+        policy = PolicyEngine(self.config_path)
+
+        self.assertEqual(
+            policy.headers["X-Bug-Bounty-Researcher"],
+            "test-user"
+        )
+
+    def test_unsafe_headers_rejected(self):
+        self.config["headers"] = {
+            "Host": "external.com"
+        }
+
+        self.save_config()
+
+        with self.assertRaises(PermissionError):
+            PolicyEngine(self.config_path)
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -19,18 +19,20 @@ class PolicyAwareTCPScanner:
     """TCP connect scanner with explicit program-level controls."""
 
     def __init__(
-        self,
-        policy,
-        resolver=None,
-        socket_factory=None,
-        timeout=2.0
+            self,
+            policy,
+            resolver=None,
+            socket_factory=None,
+            timeout=2.0,
+            rate_limiter=None,
+            budget=None
     ):
         self.policy = policy
         self.tcp_policy = policy.tcp_policy
 
         if (
-            type(timeout) not in (int, float)
-            or not 0 < timeout <= 10
+                type(timeout) not in (int, float)
+                or not 0 < timeout <= 10
         ):
             raise ValueError("Invalid TCP timeout.")
 
@@ -42,16 +44,22 @@ class PolicyAwareTCPScanner:
             resolver=resolver
         )
 
-        self.rate_limiter = RateLimiter(
-            requests_per_second=(
-                self.tcp_policy.connections_per_second
-            ),
-            max_concurrent_requests=1
-        )
+        # Allow ProgramContext to inject shared controls.
+        if rate_limiter is None:
+            rate_limiter = RateLimiter(
+                requests_per_second=(
+                    self.tcp_policy.connections_per_second
+                ),
+                max_concurrent_requests=1
+            )
 
-        self.budget = RequestBudget(
-            self.tcp_policy.max_connections
-        )
+        if budget is None:
+            budget = RequestBudget(
+                self.tcp_policy.max_connections
+            )
+
+        self.rate_limiter = rate_limiter
+        self.budget = budget
 
     def scan(self, hostname, ports):
         """

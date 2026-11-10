@@ -5,12 +5,18 @@ from unittest.mock import MagicMock
 from core.scope_guard import ScopeGuard
 from core.tcp_policy import TCPScanPolicy
 from core.tcp_scanner import PolicyAwareTCPScanner
+from core.program_context import ProgramContext
+from core.request_budget import RequestBudgetExceeded
 
 
 class FakePolicy:
     def __init__(self, active=True, tcp_enabled=True):
         self.active = active
 
+        # Required by ProgramContext's HTTP RequestManager.
+        self.requests_per_second = 100
+        self.max_concurrent_requests = 2
+        self.max_requests = 20
         self.scope_guard = ScopeGuard(
             allowed=["example.com", "*.example.com"],
             excluded=["admin.example.com"]
@@ -183,6 +189,166 @@ class TestTCPPolicy(unittest.TestCase):
                 "max_connections": 10
             })
 
+class TestSharedTCPContext(unittest.TestCase):
+
+    def setUp(self):
+        self.policy = FakePolicy()
+
+        self.context = ProgramContext(
+            self.policy
+        )
+
+        def create_socket():
+            sock = MagicMock()
+            sock.__enter__.return_value = sock
+            sock.connect_ex.return_value = 0
+            return sock
+
+        self.socket_factory = MagicMock(
+            side_effect=lambda *args, **kwargs: create_socket()
+        )
+
+    def create_scanner(self):
+        return self.context.create_tcp_scanner(
+            resolver=fake_resolver,
+            socket_factory=self.socket_factory
+        )
+
+    def test_scanners_share_budget(self):
+        scanner_a = self.create_scanner()
+        scanner_b = self.create_scanner()
+
+        self.assertIs(
+            scanner_a.budget,
+            scanner_b.budget
+        )
+
+        self.assertIs(
+            scanner_a.budget,
+            self.context.tcp_budget
+        )
+
+    def test_scanners_share_rate_limiter(self):
+        scanner_a = self.create_scanner()
+        scanner_b = self.create_scanner()
+
+        self.assertIs(
+            scanner_a.rate_limiter,
+            scanner_b.rate_limiter
+        )
+
+        self.assertIs(
+            scanner_a.rate_limiter,
+            self.context.tcp_rate_limiter
+        )
+
+    def test_shared_budget_exhaustion(self):
+        scanner_a = self.create_scanner()
+        scanner_b = self.create_scanner()
+
+        scanner_a.scan(
+            "example.com",
+            [80]
+        )
+
+        scanner_b.scan(
+            "example.com",
+            [443]
+        )
+
+        self.assertEqual(
+            self.context.tcp_budget.used,
+            2
+        )
+
+        with self.assertRaises(PermissionError):
+            scanner_a.scan(
+                "example.com",
+                [80]
+            )
+
+        self.assertEqual(
+            self.socket_factory.call_count,
+            2
+        )
+
+    def test_budget_separate_from_http(self):
+        scanner = self.create_scanner()
+
+        scanner.scan(
+            "example.com",
+            [80]
+        )
+
+        self.assertEqual(
+            self.context.tcp_budget.used,
+            1
+        )
+
+        self.assertEqual(
+            self.context.request_manager.request_budget.used,
+            0
+        )
+
+    def test_independent_context_budgets(self):
+        context_b = ProgramContext(
+            FakePolicy()
+        )
+
+        self.assertIsNot(
+            self.context.tcp_budget,
+            context_b.tcp_budget
+        )
+
+        self.assertIsNot(
+            self.context.tcp_rate_limiter,
+            context_b.tcp_rate_limiter
+        )
+
+    def test_context_rejects_budget_override(self):
+        with self.assertRaises(ValueError):
+            self.context.create_tcp_scanner(
+                budget=object()
+            )
+
+    def test_context_rejects_limiter_override(self):
+        with self.assertRaises(ValueError):
+            self.context.create_tcp_scanner(
+                rate_limiter=object()
+            )
+
+    def test_context_rejects_policy_override(self):
+        with self.assertRaises(ValueError):
+            self.context.create_tcp_scanner(
+                policy=FakePolicy()
+            )
+
+    def test_missing_tcp_policy_rejected(self):
+        policy = FakePolicy()
+        del policy.tcp_policy
+
+        context = ProgramContext(policy)
+
+        with self.assertRaises(ValueError):
+            context.create_tcp_scanner()
+
+    def test_tcp_scanning_disabled(self):
+        context = ProgramContext(
+            FakePolicy(tcp_enabled=False)
+        )
+
+        scanner = context.create_tcp_scanner(
+            resolver=fake_resolver,
+            socket_factory=self.socket_factory
+        )
+
+        with self.assertRaises(PermissionError):
+            scanner.scan(
+                "example.com",
+                [80]
+            )
+
+        self.socket_factory.assert_not_called()
 
 if __name__ == "__main__":
     unittest.main()

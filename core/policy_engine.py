@@ -4,6 +4,7 @@ import yaml
 
 from core.header_manager import HeaderManager
 from core.scope_guard import ScopeGuard
+from core.tcp_policy import TCPScanPolicy
 
 
 class PolicyEngine:
@@ -44,6 +45,10 @@ class PolicyEngine:
         self.headers = HeaderManager(
             self.config.get("headers", {})
         ).build()
+
+        self.tcp_policy = TCPScanPolicy.from_config(
+            self.config.get("tcp_scanning")
+        )
 
     def _load_config(self):
         try:
@@ -92,7 +97,7 @@ class PolicyEngine:
             self.config,
             {"program", "scope", "scanning"},
             "root",
-            optional={"headers"}
+            optional={"headers", "tcp_scanning"}
         )
 
         program = self.config["program"]
@@ -192,6 +197,9 @@ class PolicyEngine:
             raise ValueError(
                 "max_requests must be a positive integer."
             )
+        TCPScanPolicy.from_config(
+            self.config.get("tcp_scanning")
+        )
 
     def check_host(self, host):
         return self.scope_guard.check_host(host)

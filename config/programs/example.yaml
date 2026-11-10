@@ -24,3 +24,14 @@ scanning:
 headers:
   User-Agent: "Vultron/0.1"
   X-Bug-Bounty-Researcher: "example-researcher"
+
+  # TCP scanning is disabled by default.
+  # Ports and limits below are examples, not real authorization.
+
+  tcp_scanning:
+    enabled: false
+    allowed_ports:
+      - 80
+      - 443
+    connections_per_second: 2
+    max_connections: 20

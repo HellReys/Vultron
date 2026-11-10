@@ -20,6 +20,10 @@ class FakePolicy:
             allowed=["example.com", "*.example.com"],
             excluded=["admin.example.com"]
         )
+        self.headers = {
+            "User-Agent": "Vultron-Test/1.0",
+            "X-Bug-Bounty-Researcher": "integration-test"
+        }
 
     def can_scan(self):
         return True
@@ -60,7 +64,20 @@ class LocalHandler(BaseHTTPRequestHandler):
             self.wfile.write(body)
 
     def do_GET(self):
-        if self.path == "/hello":
+        if self.path == "/researcher":
+            researcher = self.headers.get(
+                "X-Bug-Bounty-Researcher", ""
+            )
+
+            user_agent = self.headers.get(
+                "User-Agent", ""
+            )
+
+            body = f"{researcher}|{user_agent}".encode("utf-8")
+
+            self.respond(200, body)
+
+        elif self.path == "/hello":
             self.respond(200, b"Hello from Vultron")
 
         elif self.path == "/host":
@@ -120,6 +137,18 @@ class TestHTTPIntegration(unittest.TestCase):
             resolver=fake_resolver,
             timeout=3.0,
             max_response_bytes=64
+        )
+
+    def test_custom_headers_reach_server(self):
+        result = self.send_local_request(
+            "http://api.example.com/researcher"
+        )
+
+        self.assertEqual(result.status, 200)
+
+        self.assertEqual(
+            result.body,
+            b"integration-test|Vultron-Test/1.0"
         )
 
     def local_connection(self, address, timeout=None,

@@ -19,6 +19,7 @@ scanning:
 
   requests_per_second: 2
   max_concurrent_requests: 2
+  max_requests: 500
 
 headers:
   User-Agent: "Vultron/0.1"

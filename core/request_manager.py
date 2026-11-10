@@ -4,6 +4,7 @@ from urllib.parse import urlsplit
 
 from core.rate_limiter import RateLimiter
 from core.url_validator import validate_http_url
+from core.request_budget import RequestBudget
 
 
 @dataclass(frozen=True)
@@ -20,8 +21,7 @@ class RequestManager:
 
     ALLOWED_METHODS = {"GET", "HEAD"}
 
-
-    def __init__(self, policy, rate_limiter=None):
+    def __init__(self, policy, rate_limiter=None, request_budget=None):
         self.policy = policy
 
         if rate_limiter is None:
@@ -30,7 +30,13 @@ class RequestManager:
                 max_concurrent_requests=policy.max_concurrent_requests
             )
 
+        if request_budget is None:
+            request_budget = RequestBudget(
+                max_requests=getattr(policy, "max_requests", 500)
+            )
+
         self.rate_limiter = rate_limiter
+        self.request_budget = request_budget
 
 
 
@@ -68,19 +74,22 @@ class RequestManager:
             hostname=parsed.hostname
         )
 
-
     @contextmanager
     def permit(self, url, method="GET"):
         """
-        Reserve a rate/concurrency slot for a request plan.
+        Validate and reserve a request attempt.
 
-        This is not an HTTP client and does not authorize
-        an external tool to bypass policy checks.
+        The request budget is consumed when permission is granted.
+        Unused or failed attempts are not refunded.
         """
 
         plan = self.prepare(url, method)
 
         with self.rate_limiter.limit():
-            # Recheck policy before granting the slot.
+            # Revalidate after waiting for a rate slot.
             plan = self.prepare(plan.url, plan.method)
+
+            # Atomically reserve one request attempt.
+            self.request_budget.consume()
+
             yield plan

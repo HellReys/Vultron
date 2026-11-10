@@ -6,6 +6,7 @@ from core.program_context import ProgramContext
 from core.request_manager import RequestManager
 from core.http_transport import HTTPTransport
 from core.scope_guard import ScopeGuard
+from core.request_budget import RequestBudgetExceeded
 
 
 class FakePolicy:
@@ -151,6 +152,40 @@ class TestProgramContext(unittest.TestCase):
 
         self.assertGreaterEqual(elapsed, 0.85)
         self.assertEqual(factory.call_count, 3)
+
+    def test_shared_request_budget(self):
+        self.policy.max_requests = 2
+
+        context = ProgramContext(self.policy)
+
+        recon = context.create_http_transport()
+        endpoint = context.create_http_transport()
+
+        with recon.request_manager.permit(
+            "https://example.com/"
+        ):
+            pass
+
+        with endpoint.request_manager.permit(
+            "https://example.com/"
+        ):
+            pass
+
+        with self.assertRaises(RequestBudgetExceeded):
+            with recon.request_manager.permit(
+                "https://example.com/"
+            ):
+                pass
+
+        self.assertIs(
+            recon.request_manager.request_budget,
+            endpoint.request_manager.request_budget
+        )
+
+        self.assertEqual(
+            context.request_manager.request_budget.used,
+            2
+        )
 
 
 if __name__ == "__main__":

@@ -39,6 +39,7 @@ class PolicyEngine:
         self.max_concurrent_requests = scanning[
             "max_concurrent_requests"
         ]
+        self.max_requests = scanning.get("max_requests", 500)
 
         self.headers = HeaderManager(
             self.config.get("headers", {})
@@ -118,7 +119,8 @@ class PolicyEngine:
                 "requests_per_second",
                 "max_concurrent_requests"
             },
-            "scanning"
+            "scanning",
+            optional={"max_requests"}
         )
 
         if (
@@ -184,6 +186,12 @@ class PolicyEngine:
         HeaderManager(
             self.config.get("headers", {})
         ).build()
+        max_requests = scanning.get("max_requests", 500)
+
+        if type(max_requests) is not int or max_requests < 1:
+            raise ValueError(
+                "max_requests must be a positive integer."
+            )
 
     def check_host(self, host):
         return self.scope_guard.check_host(host)

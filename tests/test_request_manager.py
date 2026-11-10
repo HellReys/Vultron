@@ -6,6 +6,7 @@ import yaml
 
 from core.policy_engine import PolicyEngine
 from core.request_manager import RequestManager
+from core.request_budget import RequestBudgetExceeded
 
 
 class TestRequestManager(unittest.TestCase):
@@ -142,6 +143,42 @@ class TestRequestManager(unittest.TestCase):
         self.assertEqual(
             plan.hostname,
             "example.com"
+        )
+
+    def test_request_budget_exhaustion(self):
+        self.config["scanning"]["max_requests"] = 2
+        self.save_config()
+
+        manager = self.create_manager()
+
+        with manager.permit("https://example.com/"):
+            pass
+
+        with manager.permit("https://example.com/"):
+            pass
+
+        with self.assertRaises(RequestBudgetExceeded):
+            with manager.permit("https://example.com/"):
+                pass
+
+        self.assertEqual(
+            manager.request_budget.used,
+            2
+        )
+
+    def test_blocked_request_does_not_consume_budget(self):
+        self.config["scanning"]["max_requests"] = 1
+        self.save_config()
+
+        manager = self.create_manager()
+
+        with self.assertRaises(PermissionError):
+            with manager.permit("https://external.com/"):
+                pass
+
+        self.assertEqual(
+            manager.request_budget.used,
+            0
         )
 
 

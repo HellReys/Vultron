@@ -180,6 +180,232 @@ class TestCVEApplicabilityAssessor(unittest.TestCase):
                 self.OBSERVED,
             )
 
+    def test_real_nvd_or_configuration_match(self):
+        config = ({
+            "nodes": [{
+                "operator": "OR",
+                "negate": False,
+                "cpeMatch": [{
+                    "vulnerable": True,
+                    "criteria": self.OBSERVED,
+                    "matchCriteriaId": (
+                        "00000000-0000-4000-8000-000000000001"
+                    ),
+                }],
+            }]
+        },)
+
+        record = self.make_record(
+            configurations=config
+        )
+
+        result = CVEApplicabilityAssessor.assess(
+            self.make_assessment(),
+            {self.CVE_ID: record},
+            self.OBSERVED,
+        )
+
+        self.assertEqual(
+            result.results[0].status,
+            CPEStatus.POSSIBLE,
+        )
+
+    def test_real_nvd_different_product(self):
+        config = ({
+            "nodes": [{
+                "operator": "OR",
+                "cpeMatch": [{
+                    "vulnerable": True,
+                    "criteria": self.OTHER,
+                }],
+            }]
+        },)
+
+        result = CVEApplicabilityAssessor.assess(
+            self.make_assessment(),
+            {
+                self.CVE_ID: self.make_record(
+                    configurations=config
+                )
+            },
+            self.OBSERVED,
+        )
+
+        self.assertEqual(
+            result.results[0].status,
+            CPEStatus.NO_MATCH,
+        )
+
+    def test_real_nvd_version_range_unknown(self):
+        config = ({
+            "nodes": [{
+                "operator": "OR",
+                "cpeMatch": [{
+                    "vulnerable": True,
+                    "criteria": (
+                        "cpe:2.3:a:example:server:*:"
+                        "*:*:*:*:*:*:*"
+                    ),
+                    "versionStartIncluding": "1.0",
+                    "versionEndExcluding": "2.0",
+                }],
+            }]
+        },)
+
+        result = CVEApplicabilityAssessor.assess(
+            self.make_assessment(),
+            {
+                self.CVE_ID: self.make_record(
+                    configurations=config
+                )
+            },
+            self.OBSERVED,
+        )
+
+        self.assertEqual(
+            result.results[0].status,
+            CPEStatus.UNKNOWN,
+        )
+
+    def test_real_nvd_and_platform_unknown(self):
+        config = ({
+            "nodes": [{
+                "operator": "AND",
+                "children": [
+                    {
+                        "operator": "OR",
+                        "cpeMatch": [{
+                            "vulnerable": True,
+                            "criteria": self.OBSERVED,
+                        }],
+                    },
+                    {
+                        "operator": "OR",
+                        "cpeMatch": [{
+                            "vulnerable": False,
+                            "criteria": (
+                                "cpe:2.3:o:example:os:1.0:"
+                                "*:*:*:*:*:*:*"
+                            ),
+                        }],
+                    },
+                ],
+            }]
+        },)
+
+        result = CVEApplicabilityAssessor.assess(
+            self.make_assessment(),
+            {
+                self.CVE_ID: self.make_record(
+                    configurations=config
+                )
+            },
+            self.OBSERVED,
+        )
+
+        self.assertEqual(
+            result.results[0].status,
+            CPEStatus.UNKNOWN,
+        )
+
+    def test_real_nvd_empty_config_unknown(self):
+        result = CVEApplicabilityAssessor.assess(
+            self.make_assessment(),
+            {
+                self.CVE_ID: self.make_record(
+                    configurations=()
+                )
+            },
+            self.OBSERVED,
+        )
+
+        self.assertEqual(
+            result.results[0].status,
+            CPEStatus.UNKNOWN,
+        )
+
+        self.assertIn(
+            "missing",
+            result.results[0].reason.lower(),
+        )
+
+    def test_real_nvd_match_plus_unsupported_unknown(self):
+        config = ({
+            "nodes": [{
+                "operator": "OR",
+                "cpeMatch": [
+                    {
+                        "vulnerable": True,
+                        "criteria": self.OBSERVED,
+                    },
+                    {
+                        "vulnerable": True,
+                        "criteria": (
+                            "cpe:2.3:a:example:server:*:"
+                            "*:*:*:*:*:*:*"
+                        ),
+                        "versionEndExcluding": "3.0",
+                    },
+                ],
+            }]
+        },)
+
+        result = CVEApplicabilityAssessor.assess(
+            self.make_assessment(),
+            {
+                self.CVE_ID: self.make_record(
+                    configurations=config
+                )
+            },
+            self.OBSERVED,
+        )
+
+        self.assertEqual(
+            result.results[0].status,
+            CPEStatus.UNKNOWN,
+        )
+
+    def test_multiple_cve_records_independent_results(self):
+        from dataclasses import replace
+
+        second_id = "CVE-2024-54321"
+
+        assessment = self.make_assessment(
+            ids=(self.CVE_ID, second_id)
+        )
+
+        first_record = self.make_record()
+
+        second_record = replace(
+            self.make_record(
+                criteria=self.OTHER
+            ),
+            cve_id=second_id,
+        )
+
+        result = CVEApplicabilityAssessor.assess(
+            assessment,
+            {
+                self.CVE_ID: first_record,
+                second_id: second_record,
+            },
+            self.OBSERVED,
+        )
+
+        self.assertEqual(
+            len(result.results),
+            2,
+        )
+
+        self.assertEqual(
+            result.results[0].status,
+            CPEStatus.POSSIBLE,
+        )
+
+        self.assertEqual(
+            result.results[1].status,
+            CPEStatus.NO_MATCH,
+        )
 
 if __name__ == "__main__":
     unittest.main()

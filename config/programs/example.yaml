@@ -28,3 +28,4 @@ tcp_scanning:
     - 443
   connections_per_second: 2
   max_connections: 20
+  banner_grabbing_enabled: false

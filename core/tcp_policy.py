@@ -8,6 +8,7 @@ class TCPScanPolicy:
     allowed_ports: tuple[int, ...]
     connections_per_second: float
     max_connections: int
+    banner_grabbing_enabled: bool = False
 
     @classmethod
     def from_config(cls, config):
@@ -16,7 +17,8 @@ class TCPScanPolicy:
                 enabled=False,
                 allowed_ports=(),
                 connections_per_second=1.0,
-                max_connections=1
+                max_connections=1,
+                banner_grabbing_enabled=False
             )
 
         if not isinstance(config, dict):
@@ -31,9 +33,28 @@ class TCPScanPolicy:
             "max_connections"
         }
 
-        if set(config) != required:
+        optional = {"banner_grabbing_enabled"}
+
+        if (
+                not required.issubset(config)
+                or set(config) - required - optional
+        ):
             raise ValueError(
                 "Invalid or missing tcp_scanning fields."
+            )
+
+        banner_enabled = config.get(
+            "banner_grabbing_enabled", False
+        )
+
+        if type(banner_enabled) is not bool:
+            raise ValueError(
+                "banner_grabbing_enabled must be boolean."
+            )
+
+        if banner_enabled and not config["enabled"]:
+            raise ValueError(
+                "Banner grabbing requires TCP scanning."
             )
 
         enabled = config["enabled"]
@@ -78,5 +99,6 @@ class TCPScanPolicy:
             enabled=enabled,
             allowed_ports=tuple(sorted(ports)),
             connections_per_second=float(rate),
-            max_connections=maximum
+            max_connections=maximum,
+            banner_grabbing_enabled=banner_enabled
         )

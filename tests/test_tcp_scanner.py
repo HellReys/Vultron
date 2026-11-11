@@ -349,6 +349,100 @@ class TestSharedTCPContext(unittest.TestCase):
             )
 
         self.socket_factory.assert_not_called()
+class TestPassiveFingerprintIntegration(unittest.TestCase):
+
+    def setUp(self):
+        self.policy = FakePolicy()
+
+        # Explicitly authorize passive banner reading
+        # in this isolated test policy.
+        self.policy.tcp_policy = TCPScanPolicy(
+            enabled=True,
+            allowed_ports=(80, 443),
+            connections_per_second=100.0,
+            max_connections=2,
+            banner_grabbing_enabled=True
+        )
+
+        self.sock = MagicMock()
+        self.sock.__enter__.return_value = self.sock
+        self.sock.connect_ex.return_value = 0
+
+        self.socket_factory = MagicMock(
+            return_value=self.sock
+        )
+
+        self.scanner = PolicyAwareTCPScanner(
+            policy=self.policy,
+            resolver=fake_resolver,
+            socket_factory=self.socket_factory
+        )
+
+    def test_ssh_identification(self):
+        self.sock.recv.return_value = (
+            b"SSH-2.0-OpenSSH_9.6\r\n"
+        )
+
+        results = self.scanner.scan(
+            "example.com",
+            [80]
+        )
+
+        self.assertEqual(results[0].service, "SSH")
+        self.assertTrue(results[0].open)
+        self.assertEqual(self.scanner.budget.used, 1)
+
+        self.sock.recv.assert_called_once_with(256)
+        self.sock.send.assert_not_called()
+        self.sock.sendall.assert_not_called()
+
+    def test_banner_timeout_keeps_port_open(self):
+        self.sock.recv.side_effect = socket.timeout()
+
+        results = self.scanner.scan(
+            "example.com",
+            [443]
+        )
+
+        self.assertTrue(results[0].open)
+        self.assertEqual(results[0].service, "Unknown")
+        self.assertEqual(results[0].banner, "")
+
+    def test_disabled_fingerprinting_does_not_read(self):
+        self.policy.tcp_policy = TCPScanPolicy(
+            enabled=True,
+            allowed_ports=(80, 443),
+            connections_per_second=100.0,
+            max_connections=2,
+            banner_grabbing_enabled=False
+        )
+
+        scanner = PolicyAwareTCPScanner(
+            policy=self.policy,
+            resolver=fake_resolver,
+            socket_factory=self.socket_factory
+        )
+
+        results = scanner.scan(
+            "example.com",
+            [80]
+        )
+
+        self.assertTrue(results[0].open)
+        self.assertEqual(results[0].service, "Unknown")
+
+        self.sock.recv.assert_not_called()
+
+    def test_closed_port_does_not_read_banner(self):
+        self.sock.connect_ex.return_value = 111
+
+        results = self.scanner.scan(
+            "example.com",
+            [80]
+        )
+
+        self.assertFalse(results[0].open)
+        self.sock.recv.assert_not_called()
 
 if __name__ == "__main__":
     unittest.main()

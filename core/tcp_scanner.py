@@ -5,6 +5,7 @@ from dataclasses import dataclass
 from core.connection_guard import ConnectionGuard
 from core.rate_limiter import RateLimiter
 from core.request_budget import RequestBudget
+from core.service_fingerprint import ServiceFingerprinter
 
 
 @dataclass(frozen=True)
@@ -13,6 +14,9 @@ class TCPPortResult:
     ip_address: str
     port: int
     open: bool
+    service: str = "Unknown"
+    banner: str = ""
+    confidence: str = "none"
 
 
 class PolicyAwareTCPScanner:
@@ -60,6 +64,25 @@ class PolicyAwareTCPScanner:
 
         self.rate_limiter = rate_limiter
         self.budget = budget
+
+    def _read_passive_banner(self, sock):
+        """
+        Read unsolicited server data from an existing TCP socket.
+
+        Never sends any application-layer data.
+        """
+
+        sock.settimeout(min(self.timeout, 0.2))
+
+        try:
+            data = sock.recv(
+                ServiceFingerprinter.MAX_BANNER_BYTES
+            )
+
+        except (socket.timeout, TimeoutError, OSError):
+            data = b""
+
+        return ServiceFingerprinter.identify(data)
 
     def scan(self, hostname, ports):
         """
@@ -121,12 +144,15 @@ class PolicyAwareTCPScanner:
 
         for port in ports:
             with self.rate_limiter.limit():
-                # One connection attempt consumes one budget unit.
                 self.budget.consume()
 
+                service = "Unknown"
+                banner = ""
+                confidence = "none"
+
                 with self.socket_factory(
-                    family,
-                    socket.SOCK_STREAM
+                        family,
+                        socket.SOCK_STREAM
                 ) as sock:
                     sock.settimeout(self.timeout)
 
@@ -139,12 +165,27 @@ class PolicyAwareTCPScanner:
                     except OSError:
                         is_open = False
 
+                    if (
+                            is_open
+                            and self.tcp_policy.banner_grabbing_enabled
+                    ):
+                        fingerprint = self._read_passive_banner(
+                            sock
+                        )
+
+                        service = fingerprint.service
+                        banner = fingerprint.banner
+                        confidence = fingerprint.confidence
+
                 results.append(
                     TCPPortResult(
                         host=hostname,
                         ip_address=ip_address,
                         port=port,
-                        open=is_open
+                        open=is_open,
+                        service=service,
+                        banner=banner,
+                        confidence=confidence
                     )
                 )
 

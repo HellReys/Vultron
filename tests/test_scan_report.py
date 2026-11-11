@@ -151,6 +151,34 @@ class TestScanReportWriter(unittest.TestCase):
         self.assertTrue(first.exists())
         self.assertTrue(second.exists())
 
+    def test_default_cve_section(self):
+        path = self.write_report()
+
+        data = json.loads(
+            path.read_text(encoding="utf-8")
+        )
+
+        section = data["cve_assessment"]
+
+        self.assertEqual(
+            section["status"],
+            "NOT_PERFORMED",
+        )
+
+        self.assertFalse(
+            section["vulnerability_confirmed"]
+        )
+
+        self.assertEqual(section["results"], [])
+
+    def test_report_rejects_invalid_assessment(self):
+        with self.assertRaises(ValueError):
+            self.writer.write(
+                self.summary,
+                tcp_budget_used=2,
+                tcp_budget_limit=20,
+                assessment="invalid",
+            )
 
 if __name__ == "__main__":
     unittest.main()

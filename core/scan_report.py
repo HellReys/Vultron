@@ -2,6 +2,7 @@ import json
 import re
 from datetime import datetime, timezone
 from pathlib import Path
+from core.assessment_report import AssessmentReport
 
 
 class ScanReportWriter:
@@ -32,7 +33,8 @@ class ScanReportWriter:
         self,
         summary,
         tcp_budget_used,
-        tcp_budget_limit
+        tcp_budget_limit,
+        assessment=None
     ):
         """Create a new report without overwriting old reports."""
 
@@ -71,7 +73,10 @@ class ScanReportWriter:
                 "used": tcp_budget_used,
                 "limit": tcp_budget_limit
             },
-            "results": results
+            "results": results,
+            "cve_assessment": AssessmentReport.build(
+                assessment
+            )
         }
 
         self.output_dir.mkdir(

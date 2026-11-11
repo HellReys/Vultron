@@ -131,6 +131,13 @@ def run_scan(program_path, target, settings_path):
         tcp_budget_limit=budget_limit
     )
 
+    print("\n[CVE ANALYSIS]")
+    print("Status: NOT_PERFORMED")
+    print("Confirmed vulnerabilities: 0")
+    print(
+        "Note: TCP fingerprinting alone does not "
+        "confirm CVE applicability."
+    )
     print(f"[REPORT] Saved to: {report_path}")
 
     return summary

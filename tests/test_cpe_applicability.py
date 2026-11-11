@@ -312,5 +312,176 @@ class TestCPEApplicability(unittest.TestCase):
 
         self.assertEqual(result.status, CPEStatus.UNKNOWN)
 
+    def test_nvd_schema_without_top_operator(self):
+        config = [{
+            "nodes": [{
+                "operator": "OR",
+                "negate": False,
+                "cpeMatch": [
+                    self.make_entry(self.OBSERVED)
+                ],
+            }]
+        }]
+
+        result = CPEApplicabilityEvaluator.evaluate(
+            config, self.OBSERVED
+        )
+
+        self.assertEqual(
+            result.status,
+            CPEStatus.POSSIBLE
+        )
+
+    def test_nvd_schema_no_match(self):
+        config = [{
+            "nodes": [{
+                "operator": "OR",
+                "cpeMatch": [
+                    self.make_entry(
+                        "cpe:2.3:a:example:other:2.0:"
+                        "*:*:*:*:*:*:*"
+                    )
+                ],
+            }]
+        }]
+
+        result = CPEApplicabilityEvaluator.evaluate(
+            config, self.OBSERVED
+        )
+
+        self.assertEqual(
+            result.status,
+            CPEStatus.NO_MATCH
+        )
+
+    def test_nvd_schema_with_match_criteria_id(self):
+        entry = self.make_entry(self.OBSERVED)
+
+        entry["matchCriteriaId"] = (
+            "00000000-0000-4000-8000-000000000001"
+        )
+
+        config = [{
+            "nodes": [{
+                "operator": "OR",
+                "cpeMatch": [entry],
+            }]
+        }]
+
+        result = CPEApplicabilityEvaluator.evaluate(
+            config, self.OBSERVED
+        )
+
+        self.assertEqual(
+            result.status,
+            CPEStatus.POSSIBLE
+        )
+
+    def test_nvd_schema_explicit_and_is_unknown(self):
+        config = [{
+            "operator": "AND",
+            "nodes": [{
+                "operator": "OR",
+                "cpeMatch": [
+                    self.make_entry(self.OBSERVED)
+                ],
+            }]
+        }]
+
+        result = CPEApplicabilityEvaluator.evaluate(
+            config, self.OBSERVED
+        )
+
+        self.assertEqual(
+            result.status,
+            CPEStatus.UNKNOWN
+        )
+
+    def test_nvd_schema_mixed_conditions_unknown(self):
+        config = [{
+            "nodes": [
+                {
+                    "operator": "OR",
+                    "cpeMatch": [
+                        self.make_entry(self.OBSERVED)
+                    ],
+                },
+                {
+                    "operator": "AND",
+                    "cpeMatch": [
+                        self.make_entry(self.OBSERVED)
+                    ],
+                },
+            ]
+        }]
+
+        result = CPEApplicabilityEvaluator.evaluate(
+            config, self.OBSERVED
+        )
+
+        self.assertEqual(
+            result.status,
+            CPEStatus.UNKNOWN
+        )
+
+    def test_nvd_schema_unknown_top_field(self):
+        config = [{
+            "nodes": [{
+                "operator": "OR",
+                "cpeMatch": [
+                    self.make_entry(self.OBSERVED)
+                ],
+            }],
+            "unexpectedField": True,
+        }]
+
+        result = CPEApplicabilityEvaluator.evaluate(
+            config, self.OBSERVED
+        )
+
+        self.assertEqual(
+            result.status,
+            CPEStatus.UNKNOWN
+        )
+
+    def test_nvd_schema_missing_nodes(self):
+        config = [{}]
+
+        result = CPEApplicabilityEvaluator.evaluate(
+            config, self.OBSERVED
+        )
+
+        self.assertEqual(
+            result.status,
+            CPEStatus.UNKNOWN
+        )
+
+    def test_nvd_multiple_nodes_without_operator_unknown(self):
+        config = [{
+            "nodes": [
+                {
+                    "operator": "OR",
+                    "cpeMatch": [
+                        self.make_entry(self.OBSERVED)
+                    ],
+                },
+                {
+                    "operator": "OR",
+                    "cpeMatch": [
+                        self.make_entry(self.OBSERVED)
+                    ],
+                },
+            ]
+        }]
+
+        result = CPEApplicabilityEvaluator.evaluate(
+            config, self.OBSERVED
+        )
+
+        self.assertEqual(
+            result.status,
+            CPEStatus.UNKNOWN
+        )
+
 if __name__ == "__main__":
     unittest.main()

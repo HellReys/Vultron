@@ -120,8 +120,22 @@ class CPEApplicabilityEvaluator:
                 uncertain = True
                 continue
 
+            # NVD 2.0 configuration objects may omit
+            # the top-level operator.
+            #
+            # If absent, we support a simple collection
+            # of OR nodes only. Explicit AND and
+            # negation remain unsupported.
+
+            allowed_config_fields = {
+                "operator",
+                "negate",
+                "nodes",
+            }
+
             if (
-                    configuration.get("operator") != "OR"
+                    set(configuration) - allowed_config_fields
+                    or configuration.get("operator", "OR") != "OR"
                     or configuration.get("negate", False) is not False
             ):
                 uncertain = True
@@ -133,16 +147,28 @@ class CPEApplicabilityEvaluator:
                 uncertain = True
                 continue
 
+            if (
+                    "operator" not in configuration
+                    and len(nodes) != 1
+            ):
+                uncertain = True
+                continue
+
             for node in nodes:
                 if not isinstance(node, dict):
                     uncertain = True
                     continue
 
+                allowed_node_fields = {
+                    "operator",
+                    "negate",
+                    "cpeMatch",
+                }
+
                 if (
-                        node.get("operator") != "OR"
+                        set(node) - allowed_node_fields
+                        or node.get("operator") != "OR"
                         or node.get("negate", False) is not False
-                        or "children" in node
-                        or "nodes" in node
                 ):
                     uncertain = True
                     continue

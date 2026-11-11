@@ -1,6 +1,8 @@
 import json
 import math
 import threading
+import re
+from copy import deepcopy
 from dataclasses import dataclass
 
 import requests
@@ -23,6 +25,13 @@ class NVDSearchResult:
     total_results: int
     complete: bool
 
+@dataclass(frozen=True)
+class NVDCVERecord:
+    cve_id: str
+    vuln_status: str | None
+    published: str | None
+    last_modified: str | None
+    configurations: tuple
 
 class NVDClient:
     """
@@ -33,6 +42,10 @@ class NVDClient:
 
     API_URL = (
         "https://services.nvd.nist.gov/rest/json/cves/2.0"
+    )
+
+    CVE_PATTERN = re.compile(
+        r"^CVE-\d{4}-\d{4,}$"
     )
 
     MAX_RESPONSE_BYTES = 1_048_576
@@ -76,6 +89,7 @@ class NVDClient:
         )
 
         self.cache = {}
+        self.record_cache = {}
         self._lock = threading.RLock()
 
     @staticmethod
@@ -97,7 +111,19 @@ class NVDClient:
 
         return f"{product.strip()} {version.strip()}"
 
-    def _download(self, query):
+    def _download(self, query=None, cve_id=None):
+        if (query is None) == (cve_id is None):
+            raise ValueError(
+                "Specify exactly one NVD query type."
+            )
+
+        params = (
+            {"keywordSearch": query,
+             "resultsPerPage": self.MAX_RESULTS}
+            if query is not None
+            else {"cveId": cve_id}
+        )
+
         headers = {
             "Accept": "application/json",
             "User-Agent": "Vultron/0.1"
@@ -109,10 +135,7 @@ class NVDClient:
         try:
             with self.session.get(
                 self.API_URL,
-                params={
-                    "keywordSearch": query,
-                    "resultsPerPage": self.MAX_RESULTS
-                },
+                params=params,
                 headers=headers,
                 timeout=self.timeout,
                 stream=True,
@@ -237,3 +260,108 @@ class NVDClient:
             self.cache[query] = result
 
             return result
+    @classmethod
+    def _parse_cve_record(cls, requested_id, data):
+        if not isinstance(data, dict):
+            raise NVDError("Invalid NVD response.")
+
+        if data.get("totalResults") != 1:
+            raise NVDError(
+                "CVE was not found or response is ambiguous."
+            )
+
+        vulnerabilities = data.get("vulnerabilities")
+
+        if (
+            not isinstance(vulnerabilities, list)
+            or len(vulnerabilities) != 1
+        ):
+            raise NVDError(
+                "Expected exactly one CVE record."
+            )
+
+        entry = vulnerabilities[0]
+
+        if not isinstance(entry, dict):
+            raise NVDError("Invalid vulnerability entry.")
+
+        cve = entry.get("cve")
+
+        if not isinstance(cve, dict):
+            raise NVDError("Missing CVE object.")
+
+        cve_id = cve.get("id")
+
+        if (
+            not isinstance(cve_id, str)
+            or cve_id != requested_id
+        ):
+            raise NVDError("CVE identifier mismatch.")
+
+        configurations = cve.get("configurations", [])
+
+        if not isinstance(configurations, list):
+            raise NVDError(
+                "Invalid CVE configurations."
+            )
+
+        if any(
+            not isinstance(config, dict)
+            for config in configurations
+        ):
+            raise NVDError(
+                "Invalid configuration entry."
+            )
+
+        for field in (
+            "vulnStatus",
+            "published",
+            "lastModified"
+        ):
+            value = cve.get(field)
+
+            if value is not None and not isinstance(
+                value, str
+            ):
+                raise NVDError(
+                    f"Invalid CVE field: {field}"
+                )
+
+        return NVDCVERecord(
+            cve_id=cve_id,
+            vuln_status=cve.get("vulnStatus"),
+            published=cve.get("published"),
+            last_modified=cve.get("lastModified"),
+            configurations=tuple(
+                deepcopy(configurations)
+            )
+        )
+
+    def get_cve(self, cve_id):
+        """
+        Retrieve one CVE record by ID.
+
+        Uses the existing NVD rate limiter.
+        Successful records are cached separately.
+        """
+
+        if (
+            not isinstance(cve_id, str)
+            or not self.CVE_PATTERN.fullmatch(cve_id)
+        ):
+            raise ValueError("Invalid CVE identifier.")
+
+        with self._lock:
+            if cve_id in self.record_cache:
+                return self.record_cache[cve_id]
+
+            with self.rate_limiter.limit():
+                data = self._download(cve_id=cve_id)
+
+            record = self._parse_cve_record(
+                cve_id, data
+            )
+
+            self.record_cache[cve_id] = record
+
+            return record

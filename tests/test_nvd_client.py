@@ -182,6 +182,182 @@ class TestNVDClient(unittest.TestCase):
         with self.assertRaises(NVDError):
             self.client.search("OpenSSH", "9.6")
 
+class TestNVDFullRecord(unittest.TestCase):
+
+    def setUp(self):
+        self.session = MagicMock()
+
+        self.client = NVDClient(
+            session=self.session,
+            requests_per_second=100
+        )
+
+    def make_response(
+        self,
+        cve_id="CVE-2024-12345",
+        configurations=None,
+        status="Analyzed"
+    ):
+        import json
+
+        body = {
+            "totalResults": 1,
+            "vulnerabilities": [{
+                "cve": {
+                    "id": cve_id,
+                    "vulnStatus": status,
+                    "published": "2024-01-01T00:00:00.000",
+                    "lastModified": "2024-02-01T00:00:00.000",
+                    "configurations": (
+                        configurations
+                        if configurations is not None
+                        else []
+                    )
+                }
+            }]
+        }
+
+        response = FakeResponse(
+            200,
+            json.dumps(body).encode("utf-8")
+        )
+
+        self.session.get.return_value = response
+        return response
+
+    def test_full_record_retrieval(self):
+        configurations = [{
+            "nodes": [{
+                "operator": "OR",
+                "cpeMatch": [{
+                    "vulnerable": True,
+                    "criteria": (
+                        "cpe:2.3:a:example:server:*:"
+                        "*:*:*:*:*:*:*"
+                    )
+                }]
+            }]
+        }]
+
+        self.make_response(
+            configurations=configurations
+        )
+
+        record = self.client.get_cve(
+            "CVE-2024-12345"
+        )
+
+        self.assertEqual(
+            record.cve_id,
+            "CVE-2024-12345"
+        )
+
+        self.assertEqual(
+            record.vuln_status,
+            "Analyzed"
+        )
+
+        self.assertEqual(
+            len(record.configurations),
+            1
+        )
+
+    def test_cve_id_query_parameter(self):
+        self.make_response()
+
+        self.client.get_cve("CVE-2024-12345")
+
+        kwargs = self.session.get.call_args.kwargs
+
+        self.assertEqual(
+            kwargs["params"],
+            {"cveId": "CVE-2024-12345"}
+        )
+
+        self.assertFalse(
+            kwargs["allow_redirects"]
+        )
+
+    def test_record_cache(self):
+        self.make_response()
+
+        first = self.client.get_cve(
+            "CVE-2024-12345"
+        )
+
+        second = self.client.get_cve(
+            "CVE-2024-12345"
+        )
+
+        self.assertIs(first, second)
+        self.assertEqual(
+            self.session.get.call_count,
+            1
+        )
+
+    def test_invalid_cve_id_rejected(self):
+        with self.assertRaises(ValueError):
+            self.client.get_cve(
+                "CVE-invalid"
+            )
+
+        self.session.get.assert_not_called()
+
+    def test_mismatched_cve_rejected(self):
+        self.make_response(
+            cve_id="CVE-2024-99999"
+        )
+
+        with self.assertRaises(NVDError):
+            self.client.get_cve(
+                "CVE-2024-12345"
+            )
+
+        self.assertEqual(
+            len(self.client.record_cache),
+            0
+        )
+
+    def test_missing_cve_rejected(self):
+        response = FakeResponse(
+            200,
+            b'{"totalResults":0,"vulnerabilities":[]}'
+        )
+
+        self.session.get.return_value = response
+
+        with self.assertRaises(NVDError):
+            self.client.get_cve(
+                "CVE-2024-12345"
+            )
+
+    def test_invalid_configurations_rejected(self):
+        self.make_response(
+            configurations="invalid"
+        )
+
+        with self.assertRaises(NVDError):
+            self.client.get_cve(
+                "CVE-2024-12345"
+            )
+
+    def test_record_http_error_not_cached(self):
+        response = FakeResponse(
+            500,
+            b""
+        )
+
+        self.session.get.return_value = response
+
+        with self.assertRaises(NVDError):
+            self.client.get_cve(
+                "CVE-2024-12345"
+            )
+
+        self.assertEqual(
+            len(self.client.record_cache),
+            0
+        )
 
 if __name__ == "__main__":
     unittest.main()

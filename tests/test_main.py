@@ -252,6 +252,46 @@ class TestMainCLI(unittest.TestCase):
         self.assertFalse(policy.can_scan())
         self.assertFalse(policy.tcp_policy.enabled)
 
+    @patch("main.run_scan")
+    def test_nvd_flag_passed_to_runner(self, mock_run):
+        with redirect_stdout(self.stdout):
+            result = main.main([
+                "--program", "program.yaml",
+                "--target", "example.com",
+                "--nvd",
+            ])
+
+        self.assertEqual(result, 0)
+
+        self.assertTrue(
+            mock_run.call_args.kwargs["nvd_enabled"]
+        )
+
+    @patch("main.run_scan")
+    def test_nvd_disabled_by_default(self, mock_run):
+        with redirect_stdout(self.stdout):
+            result = main.main([
+                "--program", "program.yaml",
+                "--target", "example.com",
+            ])
+
+        self.assertEqual(result, 0)
+
+        self.assertNotIn(
+            "nvd_enabled",
+            mock_run.call_args.kwargs,
+        )
+
+    @patch("main.run_scan")
+    def test_nvd_requires_normal_cli_arguments(
+        self, mock_run
+    ):
+        with redirect_stderr(self.stderr):
+            with self.assertRaises(SystemExit):
+                main.main(["--nvd"])
+
+        mock_run.assert_not_called()
+
 
 if __name__ == "__main__":
     unittest.main()

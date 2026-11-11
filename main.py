@@ -6,6 +6,9 @@ from core.policy_engine import PolicyEngine
 from core.program_context import ProgramContext
 from core.scan_orchestrator import ScanOrchestrator
 from core.scan_report import ScanReportWriter
+from core.nvd_client import NVDClient, NVDError
+from core.nvd_scan_analysis import NVDScanAnalyzer
+from core.assessment_report import AssessmentReport
 
 
 def create_parser():
@@ -34,10 +37,19 @@ def create_parser():
         help="Path to global application settings."
     )
 
+    parser.add_argument(
+        "--nvd",
+        action="store_true",
+        help=(
+            "Enable one bounded NVD keyword search "
+            "after an authorized TCP scan."
+        ),
+    )
+
     return parser
 
 
-def run_scan(program_path, target, settings_path):
+def run_scan(program_path, target, settings_path, nvd_enabled=False):
     """
     Run a scan through the validated program context.
 
@@ -122,22 +134,62 @@ def run_scan(program_path, target, settings_path):
         f"\nTCP budget used: "
         f"{budget_used}/{budget_limit}"
     )
+    assessment = None
 
+    if nvd_enabled:
+        print("\n[NVD ANALYSIS] Enabled")
+
+        client = NVDClient(
+            requests_per_second=0.1,
+            timeout=15.0,
+        )
+
+        try:
+            assessment = NVDScanAnalyzer.analyze(
+                summary,
+                client,
+            )
+
+        except (NVDError, ValueError) as error:
+            print(f"[NVD WARNING] {error}")
+            print(
+                "[NVD] Scan results will still be saved."
+            )
+
+        finally:
+            client.session.close()
     reporter = ScanReportWriter()
 
     report_path = reporter.write(
         summary=summary,
         tcp_budget_used=budget_used,
-        tcp_budget_limit=budget_limit
+        tcp_budget_limit=budget_limit,
+        assessment=assessment,
     )
 
+    section = AssessmentReport.build(assessment)
+
     print("\n[CVE ANALYSIS]")
-    print("Status: NOT_PERFORMED")
-    print("Confirmed vulnerabilities: 0")
+    print("Status:", section["status"])
     print(
-        "Note: TCP fingerprinting alone does not "
-        "confirm CVE applicability."
+        "Search complete:",
+        section["search_complete"],
     )
+    print(
+        "Evidence accepted:",
+        section["evidence_accepted"],
+    )
+    print(
+        "Confirmed vulnerabilities:",
+        section["confirmed_vulnerabilities"],
+    )
+
+    for item in section["results"]:
+        print(
+            f"  {item['cve_id']}: "
+            f"{item['status']} / "
+            f"{item['applicability']}"
+        )
     print(f"[REPORT] Saved to: {report_path}")
 
     return summary
@@ -148,11 +200,16 @@ def main(argv=None):
     args = parser.parse_args(argv)
 
     try:
-        run_scan(
-            program_path=args.program,
-            target=args.target,
-            settings_path=args.settings
-        )
+        scan_kwargs = {
+            "program_path": args.program,
+            "target": args.target,
+            "settings_path": args.settings,
+        }
+
+        if args.nvd:
+            scan_kwargs["nvd_enabled"] = True
+
+        run_scan(**scan_kwargs)
 
     except (
         PermissionError,

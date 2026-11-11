@@ -289,7 +289,9 @@ class TestNVDFullRecord(unittest.TestCase):
             "CVE-2024-12345"
         )
 
-        self.assertIs(first, second)
+        self.assertEqual(first, second)
+        self.assertIsNot(first, second)
+
         self.assertEqual(
             self.session.get.call_count,
             1
@@ -357,6 +359,173 @@ class TestNVDFullRecord(unittest.TestCase):
         self.assertEqual(
             len(self.client.record_cache),
             0
+        )
+
+    def test_cached_record_cannot_be_modified_externally(self):
+        config = [{
+            "nodes": [{
+                "operator": "OR",
+                "cpeMatch": [{
+                    "vulnerable": True,
+                    "criteria": (
+                        "cpe:2.3:a:example:server:1.0:"
+                        "*:*:*:*:*:*:*"
+                    )
+                }]
+            }]
+        }]
+
+        self.make_response(configurations=config)
+
+        first = self.client.get_cve(
+            "CVE-2024-12345"
+        )
+
+        first.configurations[0]["nodes"].clear()
+
+        second = self.client.get_cve(
+            "CVE-2024-12345"
+        )
+
+        self.assertEqual(
+            len(second.configurations[0]["nodes"]),
+            1
+        )
+
+        self.assertEqual(
+            self.session.get.call_count,
+            1
+        )
+
+    def test_cached_record_changes_do_not_persist(self):
+        config = [{
+            "nodes": [{
+                "operator": "OR",
+                "cpeMatch": [{
+                    "vulnerable": True,
+                    "criteria": (
+                        "cpe:2.3:a:example:server:1.0:"
+                        "*:*:*:*:*:*:*"
+                    )
+                }]
+            }]
+        }]
+
+        self.make_response(configurations=config)
+
+        first = self.client.get_cve(
+            "CVE-2024-12345"
+        )
+
+        first.configurations[0]["nodes"][0][
+            "cpeMatch"
+        ][0]["vulnerable"] = False
+
+        second = self.client.get_cve(
+            "CVE-2024-12345"
+        )
+
+        self.assertTrue(
+            second.configurations[0]["nodes"][0][
+                "cpeMatch"
+            ][0]["vulnerable"]
+        )
+
+    def test_parser_does_not_share_response_data(self):
+        data = {
+            "totalResults": 1,
+            "vulnerabilities": [{
+                "cve": {
+                    "id": "CVE-2024-12345",
+                    "configurations": [{
+                        "nodes": [{
+                            "operator": "OR",
+                            "cpeMatch": []
+                        }]
+                    }]
+                }
+            }]
+        }
+
+        record = self.client._parse_cve_record(
+            "CVE-2024-12345",
+            data
+        )
+
+        data["vulnerabilities"][0]["cve"][
+            "configurations"
+        ][0]["nodes"].clear()
+
+        self.assertEqual(
+            len(record.configurations[0]["nodes"]),
+            1
+        )
+
+    def test_full_record_applicability_pipeline(self):
+        from core.cve_assessment import (
+            CVECandidateAssessor
+        )
+        from core.cve_applicability import (
+            CVEApplicabilityAssessor
+        )
+        from core.cpe_applicability import CPEStatus
+        from core.nvd_client import NVDSearchResult
+
+        observed = (
+            "cpe:2.3:a:example:server:1.0:"
+            "*:*:*:*:*:*:*"
+        )
+
+        configurations = [{
+            "nodes": [{
+                "operator": "OR",
+                "cpeMatch": [{
+                    "vulnerable": True,
+                    "criteria": observed
+                }]
+            }]
+        }]
+
+        self.make_response(
+            configurations=configurations
+        )
+
+        record = self.client.get_cve(
+            "CVE-2024-12345"
+        )
+
+        search_result = NVDSearchResult(
+            query="ExampleServer 1.0",
+            cve_ids=("CVE-2024-12345",),
+            total_results=1,
+            complete=True
+        )
+
+        candidates = CVECandidateAssessor.assess(
+            "ExampleServer",
+            "1.0",
+            search_result
+        )
+
+        assessment = CVEApplicabilityAssessor.assess(
+            candidates,
+            {"CVE-2024-12345": record},
+            observed
+        )
+
+        self.assertEqual(
+            len(assessment.results),
+            1
+        )
+
+        self.assertEqual(
+            assessment.results[0].status,
+            CPEStatus.POSSIBLE
+        )
+
+        self.assertEqual(
+            assessment.results[0].cve_id,
+            "CVE-2024-12345"
         )
 
 if __name__ == "__main__":

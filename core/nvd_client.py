@@ -339,29 +339,34 @@ class NVDClient:
 
     def get_cve(self, cve_id):
         """
-        Retrieve one CVE record by ID.
+        Retrieve a complete NVD CVE record.
 
-        Uses the existing NVD rate limiter.
-        Successful records are cached separately.
+        Cached records are never returned directly.
+        Callers receive independent deep copies.
         """
 
         if (
-            not isinstance(cve_id, str)
-            or not self.CVE_PATTERN.fullmatch(cve_id)
+                not isinstance(cve_id, str)
+                or not self.CVE_PATTERN.fullmatch(cve_id)
         ):
             raise ValueError("Invalid CVE identifier.")
 
         with self._lock:
             if cve_id in self.record_cache:
-                return self.record_cache[cve_id]
+                return deepcopy(
+                    self.record_cache[cve_id]
+                )
 
             with self.rate_limiter.limit():
                 data = self._download(cve_id=cve_id)
 
             record = self._parse_cve_record(
-                cve_id, data
+                cve_id,
+                data
             )
 
-            self.record_cache[cve_id] = record
+            self.record_cache[cve_id] = deepcopy(
+                record
+            )
 
-            return record
+            return deepcopy(record)

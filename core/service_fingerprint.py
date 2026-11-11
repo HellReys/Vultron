@@ -1,4 +1,5 @@
 from dataclasses import dataclass
+from core.service_version import ServiceVersionExtractor
 
 
 @dataclass(frozen=True)
@@ -6,6 +7,9 @@ class ServiceFingerprint:
     service: str
     banner: str
     confidence: str
+    product: str | None = None
+    version: str | None = None
+    version_source: str | None = None
 
 
 class ServiceFingerprinter:
@@ -61,8 +65,13 @@ class ServiceFingerprinter:
             service = "Unknown"
             confidence = "none"
 
+        version_info = ServiceVersionExtractor.extract(data)
+
         return ServiceFingerprint(
             service=service,
             banner=text,
-            confidence=confidence
+            confidence=confidence,
+            product=version_info.product,
+            version=version_info.version,
+            version_source=version_info.source
         )

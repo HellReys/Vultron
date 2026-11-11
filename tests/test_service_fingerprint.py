@@ -63,6 +63,19 @@ class TestServiceFingerprinter(unittest.TestCase):
         with self.assertRaises(TypeError):
             ServiceFingerprinter.identify("SSH-2.0")
 
+    def test_version_information_propagated(self):
+        result = ServiceFingerprinter.identify(
+            b"SSH-2.0-OpenSSH_9.6\r\n"
+        )
+
+        self.assertEqual(result.service, "SSH")
+        self.assertEqual(result.product, "OpenSSH")
+        self.assertEqual(result.version, "9.6")
+        self.assertEqual(
+            result.version_source,
+            "ssh_banner"
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

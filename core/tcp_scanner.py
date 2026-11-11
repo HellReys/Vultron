@@ -17,6 +17,9 @@ class TCPPortResult:
     service: str = "Unknown"
     banner: str = ""
     confidence: str = "none"
+    product: str | None = None
+    version: str | None = None
+    version_source: str | None = None
 
 
 class PolicyAwareTCPScanner:
@@ -149,6 +152,9 @@ class PolicyAwareTCPScanner:
                 service = "Unknown"
                 banner = ""
                 confidence = "none"
+                product = None
+                version = None
+                version_source = None
 
                 with self.socket_factory(
                         family,
@@ -176,6 +182,9 @@ class PolicyAwareTCPScanner:
                         service = fingerprint.service
                         banner = fingerprint.banner
                         confidence = fingerprint.confidence
+                        product = fingerprint.product
+                        version = fingerprint.version
+                        version_source = fingerprint.version_source
 
                 results.append(
                     TCPPortResult(
@@ -185,7 +194,10 @@ class PolicyAwareTCPScanner:
                         open=is_open,
                         service=service,
                         banner=banner,
-                        confidence=confidence
+                        confidence=confidence,
+                        product = product,
+                        version = version,
+                        version_source = version_source
                     )
                 )
 

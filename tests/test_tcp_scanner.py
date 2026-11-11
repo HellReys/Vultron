@@ -444,5 +444,37 @@ class TestPassiveFingerprintIntegration(unittest.TestCase):
         self.assertFalse(results[0].open)
         self.sock.recv.assert_not_called()
 
+    def test_version_information_in_tcp_result(self):
+        self.sock.recv.return_value = (
+            b"SSH-2.0-OpenSSH_9.6p1\r\n"
+        )
+
+        results = self.scanner.scan(
+            "example.com",
+            [80]
+        )
+
+        self.assertEqual(len(results), 1)
+
+        result = results[0]
+
+        self.assertTrue(result.open)
+        self.assertEqual(result.service, "SSH")
+        self.assertEqual(result.product, "OpenSSH")
+        self.assertEqual(result.version, "9.6p1")
+
+        self.assertEqual(
+            result.version_source,
+            "ssh_banner"
+        )
+
+        self.assertEqual(
+            self.scanner.budget.used,
+            1
+        )
+
+        self.sock.send.assert_not_called()
+        self.sock.sendall.assert_not_called()
+
 if __name__ == "__main__":
     unittest.main()

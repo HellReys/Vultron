@@ -184,19 +184,43 @@ class TestMainCLI(unittest.TestCase):
         context.tcp_budget.max_requests = 20
 
         summary = SimpleNamespace(
+            target="example.com",
             attempted_connections=2,
-            open_ports=(80,)
+            open_ports=(80,),
+            results=(
+                SimpleNamespace(
+                    port=80,
+                    open=True,
+                    service="HTTP",
+                    banner="HTTP/1.1 200 OK",
+                    confidence="high"
+                ),
+                SimpleNamespace(
+                    port=443,
+                    open=False,
+                    service="Unknown",
+                    banner="",
+                    confidence="none"
+                )
+            )
         )
 
         mock_orchestrator.return_value.scan_tcp.return_value = (
             summary
         )
 
-        with redirect_stdout(self.stdout):
-            result = main.main([
-                "--program", "program.yaml",
-                "--target", "example.com"
-            ])
+        with patch("main.ScanReportWriter") as mock_reporter:
+            mock_reporter.return_value.write.return_value = (
+                "reports/test_report.json"
+            )
+
+            with redirect_stdout(self.stdout):
+                result = main.main([
+                    "--program", "program.yaml",
+                    "--target", "example.com"
+                ])
+
+            mock_reporter.return_value.write.assert_called_once()
 
         self.assertEqual(result, 0)
 
@@ -206,7 +230,17 @@ class TestMainCLI(unittest.TestCase):
         )
 
         self.assertIn(
-            "[OPEN] 80",
+            "80       OPEN",
+            self.stdout.getvalue()
+        )
+
+        self.assertIn(
+            "HTTP",
+            self.stdout.getvalue()
+        )
+
+        self.assertIn(
+            "[REPORT] Saved to:",
             self.stdout.getvalue()
         )
 

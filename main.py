@@ -5,6 +5,7 @@ from core.config_manager import ConfigurationManager
 from core.policy_engine import PolicyEngine
 from core.program_context import ProgramContext
 from core.scan_orchestrator import ScanOrchestrator
+from core.scan_report import ScanReportWriter
 
 
 def create_parser():
@@ -98,14 +99,39 @@ def run_scan(program_path, target, settings_path):
 
     print(f"Open ports: {len(summary.open_ports)}")
 
-    for port in summary.open_ports:
-        print(f"  [OPEN] {port}")
+    print("\nPORT     STATUS       SERVICE     CONFIDENCE")
+    print("-" * 55)
+
+    for result in summary.results:
+        status = "OPEN" if result.open else "NOT_OPEN"
+
+        print(
+            f"{result.port:<8} "
+            f"{status:<12} "
+            f"{result.service:<11} "
+            f"{result.confidence}"
+        )
+
+        if result.open and result.banner:
+            print(f"         Banner: {result.banner}")
+
+    budget_used = context.tcp_budget.used
+    budget_limit = context.tcp_budget.max_requests
 
     print(
-        f"TCP budget used: "
-        f"{context.tcp_budget.used}/"
-        f"{context.tcp_budget.max_requests}"
+        f"\nTCP budget used: "
+        f"{budget_used}/{budget_limit}"
     )
+
+    reporter = ScanReportWriter()
+
+    report_path = reporter.write(
+        summary=summary,
+        tcp_budget_used=budget_used,
+        tcp_budget_limit=budget_limit
+    )
+
+    print(f"[REPORT] Saved to: {report_path}")
 
     return summary
 

@@ -53,6 +53,11 @@ class CPEApplicabilityEvaluator:
         if "\\" in value or "?" in value:
             return None
 
+        # Only whole-component '*' wildcards are supported.
+        # Partial wildcard expressions require a full CPE parser.
+        if any("*" in part and part != "*" for part in parts):
+            return None
+
         if observed and any(
                 part == "*" for part in parts[2:6]
         ):
@@ -70,11 +75,20 @@ class CPEApplicabilityEvaluator:
         if candidate is None:
             return None
 
+        uncertain = False
+
         for actual, expected in zip(observed, candidate):
-            if expected != "*" and actual != expected:
+            if expected == "*":
+                continue
+
+            if actual == "*" and expected != "*":
+                uncertain = True
+                continue
+
+            if actual != expected:
                 return False
 
-        return True
+        return None if uncertain else True
 
     @classmethod
     def evaluate(cls, configurations, observed_cpe):
@@ -90,8 +104,8 @@ class CPEApplicabilityEvaluator:
             )
 
         if (
-            not isinstance(configurations, list)
-            or not configurations
+                not isinstance(configurations, list)
+                or not configurations
         ):
             return CPEEvaluation(
                 CPEStatus.UNKNOWN,
@@ -106,10 +120,9 @@ class CPEApplicabilityEvaluator:
                 uncertain = True
                 continue
 
-            # Only top-level OR configurations are supported.
             if (
-                configuration.get("operator") != "OR"
-                or configuration.get("negate", False) is not False
+                    configuration.get("operator") != "OR"
+                    or configuration.get("negate", False) is not False
             ):
                 uncertain = True
                 continue
@@ -125,23 +138,22 @@ class CPEApplicabilityEvaluator:
                     uncertain = True
                     continue
 
-                # AND, negation and nested nodes are deferred.
                 if (
-                    node.get("operator") != "OR"
-                    or node.get("negate", False) is not False
-                    or "children" in node
-                    or "nodes" in node
+                        node.get("operator") != "OR"
+                        or node.get("negate", False) is not False
+                        or "children" in node
+                        or "nodes" in node
                 ):
                     uncertain = True
                     continue
 
-                matches = node.get("cpeMatch")
+                entries = node.get("cpeMatch")
 
-                if not isinstance(matches, list) or not matches:
+                if not isinstance(entries, list) or not entries:
                     uncertain = True
                     continue
 
-                for entry in matches:
+                for entry in entries:
                     if not isinstance(entry, dict):
                         uncertain = True
                         continue
@@ -150,42 +162,53 @@ class CPEApplicabilityEvaluator:
                         uncertain = True
                         continue
 
-                    # A non-vulnerable CPE may describe a
-                    # required platform condition.
                     if entry["vulnerable"] is False:
                         uncertain = True
                         continue
 
-                    # Version ordering is not implemented.
                     if any(
-                        key in entry
-                        for key in cls.VERSION_BOUNDS
+                            field in entry
+                            for field in cls.VERSION_BOUNDS
                     ):
                         uncertain = True
                         continue
 
-                    result = cls._compare(
+                    # Unsupported fields must not silently
+                    # affect applicability.
+                    allowed_fields = {
+                        "vulnerable",
+                        "criteria",
+                        "matchCriteriaId"
+                    }
+
+                    if set(entry) - allowed_fields:
+                        uncertain = True
+                        continue
+
+                    comparison = cls._compare(
                         observed,
                         entry.get("criteria")
                     )
 
-                    if result is True:
+                    if comparison is True:
                         matched = True
-                    elif result is None:
+
+                    elif comparison is None:
                         uncertain = True
+
+        # Uncertainty takes precedence over every match.
+        if uncertain:
+            return CPEEvaluation(
+                CPEStatus.UNKNOWN,
+                "At least one applicability condition "
+                "could not be evaluated safely."
+            )
 
         if matched:
             return CPEEvaluation(
                 CPEStatus.POSSIBLE,
-                "A supported CPE criterion matched. "
+                "Supported CPE criteria matched. "
                 "Vulnerability is not confirmed."
-            )
-
-        if uncertain:
-            return CPEEvaluation(
-                CPEStatus.UNKNOWN,
-                "Applicability contains unsupported "
-                "or incomplete conditions."
             )
 
         return CPEEvaluation(

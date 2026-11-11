@@ -209,5 +209,108 @@ class TestCPEApplicability(unittest.TestCase):
             CPEStatus.UNKNOWN
         )
 
+    def test_match_with_unsupported_and_is_unknown(self):
+        config = self.make_config([
+            self.make_entry(self.OBSERVED)
+        ])
+
+        config[0]["nodes"].append({
+            "operator": "AND",
+            "cpeMatch": [
+                self.make_entry(self.OBSERVED)
+            ]
+        })
+
+        result = CPEApplicabilityEvaluator.evaluate(
+            config, self.OBSERVED
+        )
+
+        self.assertEqual(result.status, CPEStatus.UNKNOWN)
+
+    def test_match_with_negated_node_is_unknown(self):
+        config = self.make_config([
+            self.make_entry(self.OBSERVED)
+        ])
+
+        config[0]["nodes"].append({
+            "operator": "OR",
+            "negate": True,
+            "cpeMatch": [
+                self.make_entry(self.OBSERVED)
+            ]
+        })
+
+        result = CPEApplicabilityEvaluator.evaluate(
+            config, self.OBSERVED
+        )
+
+        self.assertEqual(result.status, CPEStatus.UNKNOWN)
+
+    def test_match_with_version_range_is_unknown(self):
+        ranged_entry = self.make_entry(
+            self.OBSERVED
+        )
+
+        ranged_entry["versionEndExcluding"] = "10.0"
+
+        config = self.make_config([
+            self.make_entry(self.OBSERVED),
+            ranged_entry
+        ])
+
+        result = CPEApplicabilityEvaluator.evaluate(
+            config, self.OBSERVED
+        )
+
+        self.assertEqual(result.status, CPEStatus.UNKNOWN)
+
+    def test_match_with_platform_condition_is_unknown(self):
+        config = self.make_config([
+            self.make_entry(self.OBSERVED),
+            self.make_entry(
+                "cpe:2.3:o:example:system:1.0:"
+                "*:*:*:*:*:*:*",
+                vulnerable=False
+            )
+        ])
+
+        result = CPEApplicabilityEvaluator.evaluate(
+            config, self.OBSERVED
+        )
+
+        self.assertEqual(result.status, CPEStatus.UNKNOWN)
+
+    def test_unspecified_observed_field_is_unknown(self):
+        criteria = (
+            "cpe:2.3:a:openbsd:openssh:9.6p1:"
+            "*:windows:*:*:*:*:*"
+        )
+
+        config = self.make_config([
+            self.make_entry(criteria)
+        ])
+
+        result = CPEApplicabilityEvaluator.evaluate(
+            config, self.OBSERVED
+        )
+
+        self.assertEqual(result.status, CPEStatus.UNKNOWN)
+
+    def test_partial_wildcard_is_unknown(self):
+        criteria = (
+            "cpe:2.3:a:openbsd:open*:*:"
+            "*:*:*:*:*:*:*"
+        )
+
+        config = self.make_config([
+            self.make_entry(criteria)
+        ])
+
+        result = CPEApplicabilityEvaluator.evaluate(
+            config, self.OBSERVED
+        )
+
+        self.assertEqual(result.status, CPEStatus.UNKNOWN)
+
 if __name__ == "__main__":
     unittest.main()

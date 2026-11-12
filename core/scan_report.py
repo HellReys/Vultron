@@ -1,5 +1,8 @@
 import json
 import re
+import os
+import tempfile
+from pathlib import Path
 from datetime import datetime, timezone
 from pathlib import Path
 from core.assessment_report import AssessmentReport
@@ -42,6 +45,40 @@ class ScanReportWriter:
 
         return AssessmentReport.build(assessment)
 
+    @staticmethod
+    def _atomic_write(filepath, report):
+        """
+        Write a complete JSON report without overwriting
+        an existing file or leaving partial JSON behind.
+        """
+        temp_path = None
+
+        try:
+            fd, temp_name = tempfile.mkstemp(
+                prefix=".vultron_",
+                suffix=".tmp",
+                dir=filepath.parent,
+            )
+            temp_path = Path(temp_name)
+
+            with os.fdopen(fd, "w", encoding="utf-8") as file:
+                json.dump(
+                    report,
+                    file,
+                    indent=4,
+                    ensure_ascii=False,
+                )
+                file.flush()
+                os.fsync(file.fileno())
+
+            # Atomic creation without replacing an existing report.
+            # Both paths are on the same filesystem.
+            os.link(temp_path, filepath)
+
+        finally:
+            if temp_path is not None:
+                temp_path.unlink(missing_ok=True)
+
     def write(
         self,
         summary,
@@ -70,7 +107,9 @@ class ScanReportWriter:
                     "OPEN" if result.open else "NOT_OPEN"
                 ),
                 "service": result.service,
-                "banner": result.banner,
+                "banner": (
+                    "[REDACTED]" if result.banner else None
+                ),
                 "confidence": result.confidence
             })
 
@@ -113,16 +152,7 @@ class ScanReportWriter:
 
         filepath = self.output_dir / filename
 
-        # Exclusive creation prevents accidental overwrites.
-        with filepath.open(
-            "x", encoding="utf-8"
-        ) as file:
-            json.dump(
-                report,
-                file,
-                indent=4,
-                ensure_ascii=False
-            )
+        self._atomic_write(filepath, report)
 
         self.last_assessment_section = assessment_section
 

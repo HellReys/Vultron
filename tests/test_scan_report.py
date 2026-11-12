@@ -180,5 +180,23 @@ class TestScanReportWriter(unittest.TestCase):
                 assessment="invalid",
             )
 
+    def test_banner_is_not_exported_raw(self):
+        path = self.write_report()
+
+        data = json.loads(
+            path.read_text(encoding="utf-8")
+        )
+
+        self.assertEqual(
+            data["results"][0]["banner"],
+            "[REDACTED]",
+        )
+
+        self.assertNotIn(
+            "SSH-2.0-OpenSSH_9.6",
+            path.read_text(encoding="utf-8"),
+        )
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -1,5 +1,6 @@
 import argparse
 import sys
+import requests
 
 from core.config_manager import ConfigurationManager
 from core.policy_engine import PolicyEngine
@@ -10,6 +11,7 @@ from core.nvd_client import NVDClient, NVDError
 from core.assessment_report import AssessmentReport
 from core.nvd_scan_analysis import analyze_nvd_batch
 from core.nvd_scan_analysis import NVDScanBatch
+from core.terminal_output import safe_terminal_text
 
 
 
@@ -65,7 +67,9 @@ def run_scan(program_path, target, settings_path, nvd_enabled=False):
     policy = PolicyEngine(program_path)
 
     print("\n" + "=" * 60)
-    print(f"  {settings.app.name.upper()}")
+    print(
+        f"  {safe_terminal_text(settings.app.name.upper())}"
+    )
     print("=" * 60)
 
     # Reject disabled or unauthorized scanning.
@@ -94,7 +98,7 @@ def run_scan(program_path, target, settings_path, nvd_enabled=False):
 
     orchestrator = ScanOrchestrator(context)
 
-    print(f"[TARGET] {target}")
+    print(f"[TARGET] {safe_terminal_text(target)}")
     print(
         "[PORTS] "
         + ", ".join(
@@ -116,18 +120,34 @@ def run_scan(program_path, target, settings_path, nvd_enabled=False):
     print("\nPORT     STATUS       SERVICE     CONFIDENCE")
     print("-" * 55)
 
+
     for result in summary.results:
         status = "OPEN" if result.open else "NOT_OPEN"
+
+        service = safe_terminal_text(
+            result.service,
+            max_length=60,
+        )
+
+        confidence = safe_terminal_text(
+            result.confidence,
+            max_length=30,
+        )
 
         print(
             f"{result.port:<8} "
             f"{status:<12} "
-            f"{result.service:<11} "
-            f"{result.confidence}"
+            f"{service:<11} "
+            f"{confidence}"
         )
 
         if result.open and result.banner:
-            print(f"         Banner: {result.banner}")
+            banner = safe_terminal_text(
+                result.banner,
+                max_length=200,
+            )
+
+            print(f"         Banner: {banner}")
 
     budget_used = context.tcp_budget.used
     budget_limit = context.tcp_budget.max_requests
@@ -136,24 +156,27 @@ def run_scan(program_path, target, settings_path, nvd_enabled=False):
         f"\nTCP budget used: "
         f"{budget_used}/{budget_limit}"
     )
+
     assessment = None
 
     if nvd_enabled:
         print("\n[NVD ANALYSIS] Enabled")
 
-        client = NVDClient(
-            requests_per_second=0.1,
-            timeout=15.0,
-        )
+        client = None
 
         try:
+            client = NVDClient(
+                requests_per_second=0.1,
+                timeout=15.0,
+            )
+
             assessment = analyze_nvd_batch(
                 summary,
                 client,
                 max_queries=3,
             )
 
-        except (NVDError, ValueError):
+        except (NVDError, ValueError, OSError):
             assessment = NVDScanBatch(
                 status="ERROR",
                 entries=(),
@@ -162,13 +185,24 @@ def run_scan(program_path, target, settings_path, nvd_enabled=False):
                 search_complete=False,
             )
 
-            print("[NVD WARNING] NVD analysis could not start.")
-            print("[NVD] TCP scan results will still be saved.")
-
+            print(
+                "[NVD WARNING] NVD analysis failed."
+            )
+            print(
+                "[NVD] TCP scan results will still be saved."
+            )
 
         finally:
+
             if client is not None:
-                client.session.close()
+                try:
+                    client.session.close()
+
+                except (OSError, requests.RequestException):
+                    print(
+                        "[NVD WARNING] NVD connection cleanup failed."
+                    )
+
     reporter = ScanReportWriter()
 
     report_path = reporter.write(

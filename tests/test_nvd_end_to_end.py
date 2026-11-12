@@ -297,5 +297,106 @@ class TestNVDEndToEnd(unittest.TestCase):
         )
 
 
+
+    def test_nvd_constructor_failure_preserves_report(self):
+        self.nvd_class.side_effect = NVDError(
+            "PRIVATE_CONNECTION_DETAILS"
+        )
+
+        result = self.execute_cli()
+        report = self.read_report()
+
+        self.assertEqual(result, 0)
+        self.assertEqual(
+            report["cve_assessment"]["status"],
+            "ERROR",
+        )
+        self.assertEqual(len(report["results"]), 3)
+
+        self.assertNotIn(
+            "PRIVATE_CONNECTION_DETAILS",
+            self.stdout.getvalue(),
+        )
+
+        self.assertNotIn(
+            "PRIVATE_CONNECTION_DETAILS",
+            json.dumps(report),
+        )
+
+    def test_invalid_nvd_configuration_preserves_report(self):
+        self.nvd_class.side_effect = ValueError(
+            "Invalid synthetic NVD configuration"
+        )
+
+        result = self.execute_cli()
+        report = self.read_report()
+
+        self.assertEqual(result, 0)
+        self.assertEqual(
+            report["cve_assessment"]["status"],
+            "ERROR",
+        )
+        self.assertEqual(len(report["results"]), 3)
+
+    def test_nvd_cleanup_error_preserves_report(self):
+        self.client.session.close.side_effect = OSError(
+            "Synthetic connection cleanup failure"
+        )
+
+        result = self.execute_cli()
+        report = self.read_report()
+
+        self.assertEqual(result, 0)
+        self.assertEqual(
+            report["cve_assessment"]["status"],
+            "COMPLETE",
+        )
+        self.assertEqual(len(report["results"]), 3)
+
+        self.assertIn(
+            "NVD connection cleanup failed",
+            self.stdout.getvalue(),
+        )
+
+    def test_untrusted_banner_is_safe_in_terminal(self):
+        summary = self.make_summary()
+
+        malicious_port = SimpleNamespace(
+            port=22,
+            open=True,
+            service="OpenSSH\nFAKE_SERVICE",
+            product="OpenSSH",
+            version="9.6",
+            banner="\x1b[31mFAKE_ALERT\nNEXT_LINE",
+            confidence="high",
+        )
+
+        self.orchestrator.scan_tcp.return_value = (
+            SimpleNamespace(
+                target=summary.target,
+                attempted_connections=3,
+                open_ports=summary.open_ports,
+                results=(
+                    malicious_port,
+                    *summary.results[1:],
+                ),
+            )
+        )
+
+        result = self.execute_cli(enable_nvd=False)
+        output = self.stdout.getvalue()
+        report = self.read_report()
+
+        self.assertEqual(result, 0)
+
+        self.assertNotIn("\x1b", output)
+        self.assertNotIn("\nFAKE_SERVICE", output)
+        self.assertNotIn("\nNEXT_LINE", output)
+
+        self.assertEqual(
+            report["cve_assessment"]["status"],
+            "NOT_PERFORMED",
+        )
+
 if __name__ == "__main__":
     unittest.main()

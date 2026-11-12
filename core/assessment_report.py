@@ -1,5 +1,6 @@
 from core.cpe_applicability import CPEStatus
 from core.cpe_evidence import EvidenceAssessment
+from core.nvd_scan_analysis import NVDScanBatch
 
 
 class AssessmentReport:
@@ -10,6 +11,49 @@ class AssessmentReport:
 
     @staticmethod
     def build(assessment=None):
+
+        if isinstance(assessment, NVDScanBatch):
+            results = []
+            errors = []
+
+            for entry in assessment.entries:
+                if entry.error_code is not None:
+                    errors.append({
+                        "product": entry.product,
+                        "version": entry.version,
+                        "code": entry.error_code,
+                    })
+                    continue
+
+                section = AssessmentReport.build(
+                    entry.assessment
+                )
+
+                for item in section["results"]:
+                    results.append({
+                        "product": entry.product,
+                        "version": entry.version,
+                        **item,
+                    })
+
+            return {
+                "status": assessment.status,
+                "evidence_accepted": False,
+                "evidence_source": None,
+                "search_complete": assessment.search_complete,
+                "attempted_queries": assessment.attempted_queries,
+                "omitted_services": assessment.omitted_services,
+                "failed_queries": len(errors),
+                "confirmed_vulnerabilities": 0,
+                "vulnerability_confirmed": False,
+                "results": results,
+                "errors": errors,
+                "reason": (
+                    "Bounded NVD keyword analysis. "
+                    "No CVE applicability was independently verified."
+                ),
+            }
+
         if assessment is None:
             return {
                 "status": "NOT_PERFORMED",

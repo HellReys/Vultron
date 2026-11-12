@@ -9,6 +9,9 @@ from core.scan_report import ScanReportWriter
 from core.nvd_client import NVDClient, NVDError
 from core.nvd_scan_analysis import NVDScanAnalyzer
 from core.assessment_report import AssessmentReport
+from core.nvd_scan_analysis import analyze_nvd_batch
+from core.nvd_scan_analysis import NVDScanBatch
+
 
 
 def create_parser():
@@ -145,19 +148,28 @@ def run_scan(program_path, target, settings_path, nvd_enabled=False):
         )
 
         try:
-            assessment = NVDScanAnalyzer.analyze(
+            assessment = analyze_nvd_batch(
                 summary,
                 client,
+                max_queries=3,
             )
 
-        except (NVDError, ValueError) as error:
-            print(f"[NVD WARNING] {error}")
-            print(
-                "[NVD] Scan results will still be saved."
+        except (NVDError, ValueError):
+            assessment = NVDScanBatch(
+                status="ERROR",
+                entries=(),
+                attempted_queries=0,
+                omitted_services=0,
+                search_complete=False,
             )
+
+            print("[NVD WARNING] NVD analysis could not start.")
+            print("[NVD] TCP scan results will still be saved.")
+
 
         finally:
-            client.session.close()
+            if client is not None:
+                client.session.close()
     reporter = ScanReportWriter()
 
     report_path = reporter.write(
@@ -183,6 +195,21 @@ def run_scan(program_path, target, settings_path, nvd_enabled=False):
         "Confirmed vulnerabilities:",
         section["confirmed_vulnerabilities"],
     )
+
+    if isinstance(assessment, NVDScanBatch):
+        print(
+            "NVD queries attempted:",
+            section["attempted_queries"],
+        )
+        print(
+            "Services omitted:",
+            section["omitted_services"],
+        )
+        print(
+            "Failed queries:",
+            section["failed_queries"],
+        )
+
 
     for item in section["results"]:
         print(

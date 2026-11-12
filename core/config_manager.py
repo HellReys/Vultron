@@ -1,9 +1,10 @@
 import math
 from dataclasses import dataclass
 from pathlib import Path
-from core.yaml_loader import load_yaml
 
 import yaml
+
+from core.yaml_loader import load_yaml
 
 
 @dataclass(frozen=True)

@@ -3,6 +3,7 @@ import re
 from datetime import datetime, timezone
 from pathlib import Path
 from core.assessment_report import AssessmentReport
+from core.nvd_scan_analysis import NVDScanBatch
 
 
 class ScanReportWriter:
@@ -10,6 +11,8 @@ class ScanReportWriter:
 
     def __init__(self, output_dir="reports"):
         self.output_dir = Path(output_dir)
+        self.last_assessment_section = None
+
 
     @staticmethod
     def _safe_target(target):
@@ -28,6 +31,16 @@ class ScanReportWriter:
             raise ValueError("Invalid report target.")
 
         return safe
+
+    @staticmethod
+    def _build_assessment_section(assessment):
+        if isinstance(assessment, NVDScanBatch):
+            try:
+                return AssessmentReport.build(assessment)
+            except (ValueError, TypeError, AttributeError):
+                return AssessmentReport.nvd_report_error()
+
+        return AssessmentReport.build(assessment)
 
     def write(
         self,
@@ -61,6 +74,10 @@ class ScanReportWriter:
                 "confidence": result.confidence
             })
 
+        assessment_section = self._build_assessment_section(
+            assessment
+        )
+
         report = {
             "schema_version": 1,
             "target": summary.target,
@@ -74,9 +91,7 @@ class ScanReportWriter:
                 "limit": tcp_budget_limit
             },
             "results": results,
-            "cve_assessment": AssessmentReport.build(
-                assessment
-            )
+            "cve_assessment": assessment_section
         }
 
         self.output_dir.mkdir(
@@ -108,5 +123,7 @@ class ScanReportWriter:
                 indent=4,
                 ensure_ascii=False
             )
+
+        self.last_assessment_section = assessment_section
 
         return filepath

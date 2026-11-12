@@ -7,7 +7,6 @@ from core.program_context import ProgramContext
 from core.scan_orchestrator import ScanOrchestrator
 from core.scan_report import ScanReportWriter
 from core.nvd_client import NVDClient, NVDError
-from core.nvd_scan_analysis import NVDScanAnalyzer
 from core.assessment_report import AssessmentReport
 from core.nvd_scan_analysis import analyze_nvd_batch
 from core.nvd_scan_analysis import NVDScanBatch
@@ -179,7 +178,11 @@ def run_scan(program_path, target, settings_path, nvd_enabled=False):
         assessment=assessment,
     )
 
-    section = AssessmentReport.build(assessment)
+    section = reporter.last_assessment_section
+
+    if not isinstance(section, dict):
+        section = AssessmentReport.build(assessment)
+
 
     print("\n[CVE ANALYSIS]")
     print("Status:", section["status"])

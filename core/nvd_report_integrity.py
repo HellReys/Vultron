@@ -56,6 +56,26 @@ def validate_nvd_batch(batch):
         if not entry.product.strip() or not entry.version.strip():
             raise ValueError("Empty NVD service identity.")
 
+        for value in (entry.product, entry.version):
+            if len(value) > 100:
+                raise ValueError("NVD service identity too long.")
+
+            if any(
+                ord(char) < 32
+                or ord(char) == 127
+                or 0x80 <= ord(char) <= 0x9F
+                for char in value
+            ):
+                raise ValueError(
+                    "Unsafe NVD service identity."
+                )
+
+            if value != value.strip():
+                raise ValueError(
+                    "Unnormalized NVD service identity."
+                )
+
+
         has_assessment = entry.assessment is not None
         has_error = entry.error_code is not None
 

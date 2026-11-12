@@ -11,6 +11,29 @@ class AssessmentReport:
     """
 
     @staticmethod
+    def nvd_report_error():
+        """Safe fallback when NVD report validation fails."""
+        return {
+            "status": "ERROR",
+            "evidence_accepted": False,
+            "evidence_source": None,
+            "search_complete": False,
+            "attempted_queries": 0,
+            "omitted_services": 0,
+            "failed_queries": 0,
+            "confirmed_vulnerabilities": 0,
+            "vulnerability_confirmed": False,
+            "results": [],
+            "errors": [{
+                "code": "REPORT_VALIDATION_FAILED"
+            }],
+            "reason": (
+                "NVD assessment could not be safely exported. "
+                "Query counters are unavailable."
+            ),
+        }
+
+    @staticmethod
     def build(assessment=None):
 
         if isinstance(assessment, NVDScanBatch):

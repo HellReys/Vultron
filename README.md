@@ -1,67 +1,58 @@
-# Vultron
+## Architecture
 
-### Automated Vulnerability & Recon Engine
+Vultron uses a policy-controlled architecture designed for authorized security assessments.
 
-**Vultron** is a high speed, multi threaded vulnerability scanner designed to perform automated reconnaissance on target systems. It doesn't just find open ports; it identifies the services running on them and maps their versions to known security vulnerabilities (CVEs).
+The application is organized into several components:
 
+- **`main.py`** — Command-line entry point, scan execution, and report generation.
+- **`core/policy_engine.py`** — Enforces scanning authorization and program-specific restrictions.
+- **`core/scope_guard.py`** — Validates whether targets are within the permitted scope.
+- **`core/program_context.py`** — Coordinates shared policies, request budgets, and rate limits.
+- **`core/tcp_scanner.py`** — Performs authorized TCP scans and passive service fingerprinting.
+- **`core/nvd_client.py`** — Retrieves vulnerability information from NVD.
+- **`core/nvd_scan_analysis.py`** — Processes bounded NVD lookups and vulnerability candidates.
+- **`core/scan_report.py`** — Generates validated JSON reports with atomic file writing and banner redaction.
+- **`tests/`** — Contains unit and integration tests.
 
+## Usage
 
-##  Key Features
+Vultron requires an explicitly authorized program configuration before running a scan.
 
-* **Multi-threaded Port Scanning:** Uses `ThreadPoolExecutor` and `socket` to perform concurrent TCP port scanning.
-* **Service Fingerprinting:** Performs "Banner Grabbing" to identify the software and version (e.g., Apache 2.4.41, OpenSSH 7.4) running on open ports.
-* **Vulnerability Mapping:** Automatically compares detected service versions against a NVD API to flag critical risks.
-* **Smart Probing:** Uses fallback HTTP probes to identify silent services that don't reveal their identity immediately.
-* **Clean Reporting:** Displays scan results in a formatted terminal table and exports detailed results as JSON.
-* **Check Dependencies:** Auto check dependencies using `requirements.txt` file.
-
-##  Project Architecture
-
-* **`src/reporter.py`**: Formats scan results for console output and exports them as JSON reports.
-* **`src/scanner.py`**: The high performance engine responsible for discovering open TCP ports.
-* **`src/banner_grabber.py`**: The "Recon" module that interacts with open ports to extract service information.
-* **`src/vuln_checker.py`**: The logic engine that maps service strings to a database of known security threats (CVEs).
-* **`main.py`**: The orchestrator that manages the workflow and environment configuration.
-
-##  Installation & Usage
-
-### 1. Requirements
-* Python 3.x
-* Dependencies: `prettytable`, `python-dotenv`, `requests`
-
-### 2. Setup
 ```bash
-# Clone the repository
-git clone https://github.com/HellReys/Vultron.git
-cd Vultron
-
-# Install dependencies
-pip install -r requirements.txt
+python main.py --program config/programs/example.yaml --target example.com --settings config/settings.yaml
 ```
-### 3. Configuration
-Create a .env file in the root directory: You can find the example of .env file(.env.example)
+
+NVD analysis can optionally be enabled using:
+
 ```bash
-TARGET_IP=127.0.0.1  # Or target hostname like scanme.nmap.org
-THREADS=100
-```
-### 4. Run
-```bash
-python3 main.py
+python main.py --program config/programs/example.yaml --target example.com --settings config/settings.yaml --nvd
 ```
 
-##  Sample Output
-```
-🔍 [SCANNING] Target: 192.168.1.50
-📡 Analyzing port 80...
-📡 Analyzing port 22...
+The example program has scanning disabled by default. Users must configure a permitted scope and confirm authorization before running assessments.
 
-+------+--------+-----------------+-------------------------------------------------+
-| Port | Status |     Banner      | Security Report                                 |
-+------+--------+-----------------+-------------------------------------------------+
-| 22   | OPEN   | OpenSSH 7.4     | 🔥 [MEDIUM] CVE-2016-10012 (Privilege Esc.)      |
-| 80   | OPEN   | Apache/2.4.41   | 🔥 [HIGH] CVE-2021-41773 (Path Traversal)       |
-+------+--------+-----------------+-------------------------------------------------+
-```
+NVD keyword matches are vulnerability candidates, not independently verified findings.
 
-## ⚠️ Disclaimer
-This tool is strictly for educational and authorized security testing purposes. Use it only on systems you own or have explicit permission to test. Unauthorized scanning can be detected and may lead to legal consequences.
+Vultron is intended for authorized security research only.
+
+## Disclaimer
+
+Vultron is an open-source cybersecurity tool developed for educational purposes, authorized security assessments, and responsible vulnerability research.
+
+**By using Vultron, you acknowledge and agree to the following:**
+
+- **Authorized Use Only:** Vultron must only be used against systems, networks, and applications for which the user has explicit authorization to perform security assessments.
+- **User Responsibility:** Users are solely responsible for ensuring their activities comply with applicable laws, regulations, and the rules of the relevant vulnerability disclosure or bug bounty program.
+- **No Unauthorized Testing:** Scanning, probing, or assessing systems without proper authorization is not an intended or supported use of this project.
+- **Assessment Limitations:** Vulnerability matches, service fingerprints, and CVE references are informational indicators and must not be treated as confirmed vulnerabilities without appropriate independent verification.
+- **No Guarantee of Security:** A successful scan or the absence of reported vulnerabilities does not guarantee that a target system is secure.
+- **No Warranty:** Vultron is provided "AS IS", without warranties of any kind, as described in the MIT License.
+
+The developers do not endorse unauthorized or unlawful use of this software. Security assessments must respect defined scope, rate limits, program policies, and applicable legal requirements.
+
+## License
+
+Vultron is licensed under the **MIT License**.
+
+See the [LICENSE](LICENSE) file for the full license terms.
+
+Copyright © 2026 HellReys.

@@ -5,8 +5,8 @@ from pathlib import Path
 import yaml
 
 from core.policy_engine import PolicyEngine
-from core.request_manager import RequestManager
 from core.request_budget import RequestBudgetExceeded
+from core.request_manager import RequestManager
 
 
 class TestRequestManager(unittest.TestCase):

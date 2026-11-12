@@ -7,8 +7,10 @@ venv/
 .env.*
 !.env.example
 
+.ruff_cache/
 __pycache__/
 *.pyc
 .pytest_cache/
+*.py[cod]
 
 reports/

@@ -1,7 +1,9 @@
 import json
 import os
 from datetime import datetime
+
 from prettytable import PrettyTable
+
 
 class ScanReporter:
     def __init__(self, target_ip):

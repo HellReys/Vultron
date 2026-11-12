@@ -2,11 +2,11 @@ import time
 import unittest
 from unittest.mock import MagicMock
 
-from core.program_context import ProgramContext
-from core.request_manager import RequestManager
 from core.http_transport import HTTPTransport
-from core.scope_guard import ScopeGuard
+from core.program_context import ProgramContext
 from core.request_budget import RequestBudgetExceeded
+from core.request_manager import RequestManager
+from core.scope_guard import ScopeGuard
 
 
 class FakePolicy:

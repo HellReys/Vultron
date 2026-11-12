@@ -1,20 +1,18 @@
 
-import io
 import json
 import tempfile
 import unittest
-
 from contextlib import redirect_stdout
 from dataclasses import replace
-from pathlib import Path
 from unittest.mock import MagicMock, patch
 
+import test_nvd_end_to_end as e2e_tests
+
+from core.nvd_client import NVDSearchResult
 from core.nvd_scan_analysis import (
     analyze_nvd_batch,
 )
-from core.nvd_client import NVDSearchResult
 from core.scan_report import ScanReportWriter
-import test_nvd_end_to_end as e2e_tests
 
 
 class TestNVDFailureIsolation(unittest.TestCase):
@@ -132,7 +130,6 @@ class TestNVDFailureIsolation(unittest.TestCase):
         )
 
     def test_corrupt_nvd_cli_report_is_consistent(self):
-        from unittest.mock import patch
 
         helper = self.helper
         original_batch = self.make_batch()

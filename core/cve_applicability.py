@@ -6,8 +6,8 @@ from core.cpe_applicability import (
     CPEStatus,
 )
 from core.cve_assessment import (
-    CVEAssessment,
     AssessmentStatus,
+    CVEAssessment,
 )
 from core.nvd_client import NVDCVERecord
 

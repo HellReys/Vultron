@@ -3,14 +3,12 @@ import io
 import json
 import tempfile
 import unittest
-
 from contextlib import ExitStack, redirect_stdout
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
 import main
-
 from core.nvd_client import (
     NVDError,
     NVDRateLimitError,

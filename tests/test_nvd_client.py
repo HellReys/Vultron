@@ -3,11 +3,7 @@ from unittest.mock import MagicMock
 
 import requests
 
-from core.nvd_client import (
-    NVDClient,
-    NVDError,
-    NVDRateLimitError
-)
+from core.nvd_client import NVDClient, NVDError, NVDRateLimitError
 
 
 class FakeResponse:
@@ -462,13 +458,9 @@ class TestNVDFullRecord(unittest.TestCase):
         )
 
     def test_full_record_applicability_pipeline(self):
-        from core.cve_assessment import (
-            CVECandidateAssessor
-        )
-        from core.cve_applicability import (
-            CVEApplicabilityAssessor
-        )
         from core.cpe_applicability import CPEStatus
+        from core.cve_applicability import CVEApplicabilityAssessor
+        from core.cve_assessment import CVECandidateAssessor
         from core.nvd_client import NVDSearchResult
 
         observed = (

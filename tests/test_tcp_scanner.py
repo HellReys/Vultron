@@ -2,11 +2,10 @@ import socket
 import unittest
 from unittest.mock import MagicMock
 
+from core.program_context import ProgramContext
 from core.scope_guard import ScopeGuard
 from core.tcp_policy import TCPScanPolicy
 from core.tcp_scanner import PolicyAwareTCPScanner
-from core.program_context import ProgramContext
-from core.request_budget import RequestBudgetExceeded
 
 
 class FakePolicy:

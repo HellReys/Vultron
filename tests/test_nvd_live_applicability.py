@@ -1,11 +1,11 @@
 import os
 import unittest
 
-from core.nvd_client import NVDClient
 from core.cpe_applicability import (
     CPEApplicabilityEvaluator,
     CPEStatus,
 )
+from core.nvd_client import NVDClient
 
 
 @unittest.skipUnless(

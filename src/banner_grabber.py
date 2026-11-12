@@ -1,5 +1,6 @@
 import socket
 
+
 def grab_banner(ip, port):
     try:
         # Open a connection to the target service

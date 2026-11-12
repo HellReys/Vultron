@@ -1,14 +1,13 @@
 import http.client
 import socket
 import ssl
-
 from dataclasses import dataclass
 from urllib.parse import urlsplit
 
 from core.connection_guard import ConnectionGuard
-from core.request_manager import RequestManager
 from core.header_manager import HeaderManager
 from core.request_deadline import RequestDeadline
+from core.request_manager import RequestManager
 
 
 class PinnedHTTPConnection(http.client.HTTPConnection):

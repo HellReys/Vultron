@@ -1,9 +1,6 @@
 import unittest
 
-from core.cve_assessment import (
-    CVECandidateAssessor,
-    AssessmentStatus
-)
+from core.cve_assessment import AssessmentStatus, CVECandidateAssessor
 from core.nvd_client import NVDSearchResult
 
 

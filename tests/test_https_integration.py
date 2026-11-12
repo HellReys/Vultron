@@ -2,7 +2,6 @@ import socket
 import ssl
 import threading
 import unittest
-
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from unittest.mock import patch
 

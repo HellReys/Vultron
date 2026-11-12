@@ -1,13 +1,13 @@
 import unittest
 
+from core.cpe_applicability import CPEStatus
 from core.cve_applicability import (
     CVEApplicabilityAssessor,
 )
-from core.cpe_applicability import CPEStatus
 from core.cve_assessment import CVECandidateAssessor
 from core.nvd_client import (
-    NVDSearchResult,
     NVDCVERecord,
+    NVDSearchResult,
 )
 
 

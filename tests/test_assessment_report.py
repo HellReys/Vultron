@@ -9,8 +9,8 @@ from core.cpe_evidence import (
 )
 from core.cve_assessment import CVECandidateAssessor
 from core.nvd_client import (
-    NVDSearchResult,
     NVDCVERecord,
+    NVDSearchResult,
 )
 
 

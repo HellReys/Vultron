@@ -1,11 +1,11 @@
 import io
 import unittest
-from contextlib import redirect_stdout, redirect_stderr
+from contextlib import redirect_stderr, redirect_stdout
 from types import SimpleNamespace
-from unittest.mock import MagicMock, patch
-from core.policy_engine import PolicyEngine
+from unittest.mock import patch
 
 import main
+from core.policy_engine import PolicyEngine
 
 
 class TestMainCLI(unittest.TestCase):

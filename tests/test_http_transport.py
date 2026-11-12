@@ -5,7 +5,7 @@ from unittest.mock import MagicMock, patch
 from core.http_transport import (
     HTTPTransport,
     PinnedHTTPConnection,
-    PinnedHTTPSConnection
+    PinnedHTTPSConnection,
 )
 from core.scope_guard import ScopeGuard
 

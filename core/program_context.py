@@ -1,7 +1,7 @@
 from core.http_transport import HTTPTransport
-from core.request_manager import RequestManager
 from core.rate_limiter import RateLimiter
 from core.request_budget import RequestBudget
+from core.request_manager import RequestManager
 from core.tcp_scanner import PolicyAwareTCPScanner
 
 

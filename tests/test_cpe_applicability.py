@@ -1,9 +1,6 @@
 import unittest
 
-from core.cpe_applicability import (
-    CPEApplicabilityEvaluator,
-    CPEStatus
-)
+from core.cpe_applicability import CPEApplicabilityEvaluator, CPEStatus
 
 
 class TestCPEApplicability(unittest.TestCase):

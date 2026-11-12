@@ -3,8 +3,8 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from core.scan_report import ScanReportWriter
 from core.scan_orchestrator import ScanSummary
+from core.scan_report import ScanReportWriter
 from core.tcp_scanner import TCPPortResult
 
 

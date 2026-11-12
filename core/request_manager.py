@@ -1,10 +1,9 @@
 from contextlib import contextmanager
 from dataclasses import dataclass
-from urllib.parse import urlsplit
 
 from core.rate_limiter import RateLimiter
-from core.url_validator import validate_http_url
 from core.request_budget import RequestBudget
+from core.url_validator import validate_http_url
 
 
 @dataclass(frozen=True)

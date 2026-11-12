@@ -1,9 +1,10 @@
 import json
-import re
 import os
+import re
 import tempfile
 from datetime import datetime, timezone
 from pathlib import Path
+
 from core.assessment_report import AssessmentReport
 from core.nvd_scan_analysis import NVDScanBatch
 from core.report_validation import validate_report

@@ -1,8 +1,7 @@
 import socket
 import threading
-import unittest
 import time
-
+import unittest
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from unittest.mock import patch
 

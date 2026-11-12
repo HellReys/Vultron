@@ -1,11 +1,10 @@
 import unittest
-
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
-from core.nvd_scan_analysis import NVDScanAnalyzer
-from core.nvd_client import NVDSearchResult
 from core.cpe_applicability import CPEStatus
+from core.nvd_client import NVDSearchResult
+from core.nvd_scan_analysis import NVDScanAnalyzer
 
 
 class TestNVDScanAnalyzer(unittest.TestCase):

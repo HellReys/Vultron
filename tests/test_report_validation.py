@@ -2,12 +2,11 @@ import copy
 import json
 import tempfile
 import unittest
-
 from pathlib import Path
 
 from core.report_validation import validate_report
-from core.scan_report import ScanReportWriter
 from core.scan_orchestrator import ScanSummary
+from core.scan_report import ScanReportWriter
 from core.tcp_scanner import TCPPortResult
 
 

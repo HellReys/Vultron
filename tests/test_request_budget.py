@@ -1,10 +1,7 @@
 import unittest
 from concurrent.futures import ThreadPoolExecutor
 
-from core.request_budget import (
-    RequestBudget,
-    RequestBudgetExceeded
-)
+from core.request_budget import RequestBudget, RequestBudgetExceeded
 
 
 class TestRequestBudget(unittest.TestCase):

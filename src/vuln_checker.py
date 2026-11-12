@@ -1,5 +1,6 @@
-import requests
 import urllib.parse
+
+import requests
 
 
 class VulnChecker:

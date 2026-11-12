@@ -1,6 +1,7 @@
-from core.cve_assessment import CVECandidateAssessor
-from core.cpe_evidence import EvidenceAwareCVEAssessor
 from dataclasses import dataclass
+
+from core.cpe_evidence import EvidenceAwareCVEAssessor
+from core.cve_assessment import CVECandidateAssessor
 from core.nvd_client import NVDError, NVDRateLimitError
 
 

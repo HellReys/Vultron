@@ -1,18 +1,17 @@
 import argparse
 import sys
+
 import requests
 
+from core.assessment_report import AssessmentReport
 from core.config_manager import ConfigurationManager
+from core.nvd_client import NVDClient, NVDError
+from core.nvd_scan_analysis import NVDScanBatch, analyze_nvd_batch
 from core.policy_engine import PolicyEngine
 from core.program_context import ProgramContext
 from core.scan_orchestrator import ScanOrchestrator
 from core.scan_report import ScanReportWriter
-from core.nvd_client import NVDClient, NVDError
-from core.assessment_report import AssessmentReport
-from core.nvd_scan_analysis import analyze_nvd_batch
-from core.nvd_scan_analysis import NVDScanBatch
 from core.terminal_output import safe_terminal_text
-
 
 
 def create_parser():

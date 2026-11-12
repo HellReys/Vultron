@@ -1,6 +1,7 @@
 import socket
-from threading import Thread, Lock
 from concurrent.futures import ThreadPoolExecutor
+from threading import Lock
+
 
 class FastScanner:
     def __init__(self, target, threads):

@@ -1,7 +1,6 @@
 import re
 from urllib.parse import urlsplit
 
-
 MAX_URL_LENGTH = 8192
 
 INVALID_PERCENT_ESCAPE = re.compile(

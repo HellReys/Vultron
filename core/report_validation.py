@@ -1,7 +1,6 @@
 import json
 from datetime import datetime
 
-
 MAX_REPORT_BYTES = 1_000_000
 MAX_RESULTS = 4096
 

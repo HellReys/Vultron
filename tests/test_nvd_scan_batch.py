@@ -1,18 +1,17 @@
 
 import unittest
-
 from types import SimpleNamespace
 from unittest.mock import MagicMock
 
+from core.assessment_report import AssessmentReport
 from core.nvd_client import (
-    NVDSearchResult,
     NVDError,
     NVDRateLimitError,
+    NVDSearchResult,
 )
 from core.nvd_scan_analysis import (
     analyze_nvd_batch,
 )
-from core.assessment_report import AssessmentReport
 
 
 class TestNVDScanBatch(unittest.TestCase):

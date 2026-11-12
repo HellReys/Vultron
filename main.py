@@ -44,7 +44,7 @@ def create_parser():
         "--nvd",
         action="store_true",
         help=(
-            "Enable one bounded NVD keyword search "
+            "Enable up to three bounded NVD keyword searches "
             "after an authorized TCP scan."
         ),
     )

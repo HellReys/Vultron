@@ -1,3 +1,17 @@
+# Vultron
+**Release status:** Vultron 2.0.0 Release Candidate 1 (`2.0.0rc1`).
+
+This is a pre-release development version. The stable v2.0.0 release has not been published yet.
+
+Vultron is designed for authorized, policy-controlled security assessments. Scanning is disabled by default and must only be enabled for explicitly authorized targets.
+
+Check the installed application version:
+
+```bash
+python main.py --version
+```
+
+The first stable v2.0.0 release will follow cross-platform verification and a limited, authorized live assessment.
 ## Architecture
 
 Vultron uses a policy-controlled architecture designed for authorized security assessments.

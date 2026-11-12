@@ -12,6 +12,7 @@ from core.program_context import ProgramContext
 from core.scan_orchestrator import ScanOrchestrator
 from core.scan_report import ScanReportWriter
 from core.terminal_output import safe_terminal_text
+from core.version import __version__
 
 
 def create_parser():
@@ -20,6 +21,12 @@ def create_parser():
         description=(
             "Vultron - Policy-controlled security scanner"
         )
+    )
+
+    parser.add_argument(
+        "--version",
+        action="version",
+        version=f"Vultron {__version__}",
     )
 
     parser.add_argument(

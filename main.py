@@ -106,6 +106,20 @@ def run_scan(program_path, target, settings_path, nvd_enabled=False):
         )
     )
 
+    print("\n[SCAN POLICY]")
+    print("Authorization: Confirmed")
+    print("Scope enforcement: Enabled")
+    print("TCP scanning: Enabled")
+    print(
+        "TCP connection limit:",
+        context.tcp_budget.max_requests,
+    )
+    print(
+        "NVD analysis:",
+        "Enabled" if nvd_enabled else "Disabled",
+    )
+
+
     summary = orchestrator.scan_tcp(target)
 
     print("\n[SCAN COMPLETED]")
@@ -218,6 +232,21 @@ def run_scan(program_path, target, settings_path, nvd_enabled=False):
 
 
     print("\n[CVE ANALYSIS]")
+
+    if not nvd_enabled:
+        print(
+            "NVD lookup: Not requested"
+        )
+    else:
+        print(
+            "NVD lookup: Requested"
+        )
+
+    print(
+        "Note: CVE candidates are not "
+        "confirmed vulnerabilities."
+    )
+
     print("Status:", section["status"])
     print(
         "Search complete:",
@@ -275,13 +304,19 @@ def main(argv=None):
         run_scan(**scan_kwargs)
 
     except (
-        PermissionError,
-        ValueError,
-        OSError
+            PermissionError,
+            ValueError,
+            OSError,
     ) as error:
+
+        message = safe_terminal_text(
+            str(error),
+            max_length=200,
+        )
+
         print(
-            f"[ERROR] {error}",
-            file=sys.stderr
+            f"[ERROR] {message}",
+            file=sys.stderr,
         )
         return 1
 

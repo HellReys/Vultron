@@ -1,6 +1,7 @@
 from core.cpe_applicability import CPEStatus
 from core.cpe_evidence import EvidenceAssessment
 from core.nvd_scan_analysis import NVDScanBatch
+from core.nvd_report_integrity import validate_nvd_batch
 
 
 class AssessmentReport:
@@ -13,6 +14,7 @@ class AssessmentReport:
     def build(assessment=None):
 
         if isinstance(assessment, NVDScanBatch):
+            validate_nvd_batch(assessment)
             results = []
             errors = []
 

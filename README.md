@@ -4,45 +4,39 @@ Vultron uses a policy-controlled architecture designed for authorized security a
 
 The application is organized into several components:
 
-- **`main.py`** — Command-line entry point, scan execution, and report generation.
-- **`core/policy_engine.py`** — Enforces scanning authorization and program-specific restrictions.
-- **`core/scope_guard.py`** — Validates whether targets are within the permitted scope.
-- **`core/program_context.py`** — Coordinates shared policies, request budgets, and rate limits.
-- **`core/tcp_scanner.py`** — Performs authorized TCP scans and passive service fingerprinting.
-- **`core/nvd_client.py`** — Retrieves vulnerability information from NVD.
-- **`core/nvd_scan_analysis.py`** — Processes bounded NVD lookups and vulnerability candidates.
-- **`core/scan_report.py`** — Generates validated JSON reports with atomic file writing and banner redaction.
-- **`tests/`** — Contains unit and integration tests.
+- **`main.py`** - Command-line entry point, scan execution, and report generation.
+- **`core/policy_engine.py`** - Enforces scanning authorization and program-specific restrictions.
+- **`core/scope_guard.py`** - Validates whether targets are within the permitted scope.
+- **`core/program_context.py`** - Coordinates shared policies, request budgets, and rate limits.
+- **`core/tcp_scanner.py`** - Performs authorized TCP scans and passive service fingerprinting.
+- **`core/nvd_client.py`** - Retrieves vulnerability information from NVD.
+- **`core/nvd_scan_analysis.py`** - Processes bounded NVD lookups and vulnerability candidates.
+- **`core/scan_report.py`** - Generates validated JSON reports with atomic file writing and banner redaction.
+- **`tests/`** - Contains unit and integration tests.
 ## Installation
 
-Vultron is a Python-based cybersecurity scanning tool designed for authorized security assessments. It supports Windows and Linux environments.
+Vultron is an open-source cybersecurity scanner designed for authorized security assessments.
 
-### Prerequisites
+### Requirements
 
-Before installing Vultron, ensure that you have:
-
-- Python 3.14 (tested on Windows)
+- Python 3.14
 - Git
-- pip (Python package manager)
-- An internet connection to install dependencies
-- Explicit authorization before scanning any target
+- pip
+- Windows or Linux
+- Authorization to assess the intended target
 
-### 1. Clone the Repository
+### 1. Download Vultron
+
+Clone the repository:
 
 ```bash
 git clone https://github.com/HellReys/Vultron.git
 cd Vultron
 ```
 
-To use the latest development version:
-
-```bash
-git switch dev
-```
+Alternatively, download the source code from the GitHub Releases page when a stable release is available.
 
 ### 2. Create a Virtual Environment
-
-Using a virtual environment keeps Vultron's dependencies isolated from other Python projects.
 
 **Windows (PowerShell):**
 
@@ -58,96 +52,73 @@ python3 -m venv .venv
 source .venv/bin/activate
 ```
 
-If the Linux environment does not include `venv`, install the appropriate Python virtual environment package for your distribution.
-
 ### 3. Install Dependencies
-
-Install the required packages:
 
 ```bash
 python -m pip install -r requirements.txt
 ```
 
-For development and testing, also install:
-
-```bash
-python -m pip install -r requirements-dev.txt
-```
-
-Verify dependency compatibility:
-
-```bash
-python -m pip check
-```
+This installs the packages required to run Vultron. Development and testing dependencies are not required.
 
 ### 4. Verify Installation
-
-Check that the command-line interface starts correctly:
 
 ```bash
 python main.py --help
 ```
 
-Run Vultron with the provided example configuration:
+### 5. Configure Vultron
+
+Vultron requires an explicitly authorized scanning configuration.
+
+Start by copying the provided example:
+
+**Windows (PowerShell):**
+
+```powershell
+Copy-Item config/programs/example.yaml config/programs/my-program.yaml
+```
+
+**Linux:**
 
 ```bash
-python main.py --program config/programs/example.yaml --target example.com --settings config/settings.yaml
+cp config/programs/example.yaml config/programs/my-program.yaml
 ```
 
-The example configuration disables scanning by default. Therefore, the expected response is:
+Edit `config/programs/my-program.yaml` and configure the authorized target scope, exclusions, scanning permissions, and applicable rate limits.
 
-```text
-[ERROR] Scanning is disabled or authorization has not been confirmed.
-```
+Scanning is disabled by default. Enable it only after verifying that you have explicit authorization from the target owner or the relevant security testing program.
 
-This behavior confirms that Vultron is enforcing its authorization requirements.
-
-To perform an actual security assessment, users must configure an explicitly authorized program, including permitted targets, scope restrictions, and applicable scanning limits.
-
-### 5. Run Tests (Optional)
-
-Developers can verify the installation by running:
+### 6. Run Vultron
 
 ```bash
-python -m unittest discover -s tests
+python main.py --program config/programs/my-program.yaml --target authorized.example.com --settings config/settings.yaml
 ```
 
-Check code quality using Ruff:
+To enable optional NVD candidate analysis:
 
 ```bash
-ruff check . --select E4,E7,E9,F,I
+python main.py --program config/programs/my-program.yaml --target authorized.example.com --settings config/settings.yaml --nvd
 ```
 
-### Platform Compatibility
+NVD matches are informational candidates and do not independently confirm exploitable vulnerabilities.
+### Supported Platforms
 
-- **Windows:** Clean installation and automated tests verified using Python 3.14.
-- **Linux:** Installation instructions are provided; automated Linux validation is planned.
+- **Windows:** Tested with Python 3.14.
+- **Linux:** Support is planned for verification through automated cross-platform testing.
 
 ### Security Notice
 
-Vultron must only be used on systems for which the operator has explicit permission to conduct security testing. Users are responsible for complying with applicable laws, defined scope, rate limits, and vulnerability disclosure program rules.
+Only assess systems for which you have explicit authorization. Always comply with defined scope, rate limits, program policies, and applicable laws.
 
-See the [Disclaimer](#disclaimer) and [LICENSE](LICENSE) for additional information.
-## Usage
+See the [Disclaimer](#disclaimer) and [LICENSE](LICENSE) for further information.
 
-Vultron requires an explicitly authorized program configuration before running a scan.
+## Contributing
 
-```bash
-python main.py --program config/programs/example.yaml --target example.com --settings config/settings.yaml
-```
+Contributions are welcome!
 
-NVD analysis can optionally be enabled using:
+If you would like to improve Vultron, fix bugs, add tests, or contribute documentation, please read our [Contributing Guidelines](CONTRIBUTING.md).
 
-```bash
-python main.py --program config/programs/example.yaml --target example.com --settings config/settings.yaml --nvd
-```
-
-The example program has scanning disabled by default. Users must configure a permitted scope and confirm authorization before running assessments.
-
-NVD keyword matches are vulnerability candidates, not independently verified findings.
-
-Vultron is intended for authorized security research only.
-
+Development contributions should target the `dev` branch. The `main` branch is intended for stable releases.
 ## Disclaimer
 
 Vultron is an open-source cybersecurity tool developed for educational purposes, authorized security assessments, and responsible vulnerability research.

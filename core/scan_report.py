@@ -2,11 +2,12 @@ import json
 import re
 import os
 import tempfile
-from pathlib import Path
 from datetime import datetime, timezone
 from pathlib import Path
 from core.assessment_report import AssessmentReport
 from core.nvd_scan_analysis import NVDScanBatch
+from core.report_validation import validate_report
+from core.terminal_output import safe_terminal_text
 
 
 class ScanReportWriter:
@@ -67,6 +68,7 @@ class ScanReportWriter:
                     file,
                     indent=4,
                     ensure_ascii=False,
+                    allow_nan=False,
                 )
                 file.flush()
                 os.fsync(file.fileno())
@@ -106,12 +108,19 @@ class ScanReportWriter:
                 "status": (
                     "OPEN" if result.open else "NOT_OPEN"
                 ),
-                "service": result.service,
+                "service": safe_terminal_text(
+                    result.service,
+                    max_length=200,
+                ),
                 "banner": (
                     "[REDACTED]" if result.banner else None
                 ),
-                "confidence": result.confidence
+                "confidence": safe_terminal_text(
+                    result.confidence,
+                    max_length=50,
+                ),
             })
+
 
         assessment_section = self._build_assessment_section(
             assessment
@@ -132,6 +141,7 @@ class ScanReportWriter:
             "results": results,
             "cve_assessment": assessment_section
         }
+        validate_report(report)
 
         self.output_dir.mkdir(
             parents=True,

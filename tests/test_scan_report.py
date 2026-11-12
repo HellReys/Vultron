@@ -197,6 +197,77 @@ class TestScanReportWriter(unittest.TestCase):
             path.read_text(encoding="utf-8"),
         )
 
+    def test_invalid_tcp_data_creates_no_file(self):
+        from types import SimpleNamespace
+
+        original = self.summary
+
+        invalid = SimpleNamespace(
+            target=original.target,
+            results=(
+                SimpleNamespace(
+                    port=70000,
+                    open=True,
+                    service="SSH",
+                    banner=None,
+                    confidence="high",
+                ),
+            ),
+            open_ports=(70000,),
+            attempted_connections=1,
+        )
+
+        with self.assertRaises(ValueError):
+            self.writer.write(
+                invalid,
+                tcp_budget_used=1,
+                tcp_budget_limit=20,
+            )
+
+        self.assertEqual(
+            list(self.output_dir.iterdir()),
+            [],
+        )
+
+
+    def test_untrusted_service_sanitized_in_report(self):
+        from types import SimpleNamespace
+
+        summary = SimpleNamespace(
+            target="example.com",
+            results=(
+                SimpleNamespace(
+                    port=22,
+                    open=True,
+                    service="SSH\nFAKE_SERVICE",
+                    banner="SECRET_BANNER",
+                    confidence="high",
+                ),
+            ),
+            open_ports=(22,),
+            attempted_connections=1,
+        )
+
+        path = self.writer.write(
+            summary,
+            tcp_budget_used=1,
+            tcp_budget_limit=10,
+        )
+
+        data = json.loads(
+            path.read_text(encoding="utf-8")
+        )
+
+        self.assertNotIn(
+            "\n",
+            data["results"][0]["service"],
+        )
+
+        self.assertEqual(
+            data["results"][0]["banner"],
+            "[REDACTED]",
+        )
+
 
 if __name__ == "__main__":
     unittest.main()

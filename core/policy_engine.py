@@ -5,6 +5,7 @@ import yaml
 from core.header_manager import HeaderManager
 from core.scope_guard import ScopeGuard
 from core.tcp_policy import TCPScanPolicy
+from core.yaml_loader import load_yaml
 
 
 class PolicyEngine:
@@ -55,7 +56,7 @@ class PolicyEngine:
             with self.config_path.open(
                 "r", encoding="utf-8"
             ) as file:
-                config = yaml.safe_load(file)
+                config = load_yaml(file)
 
         except (OSError, yaml.YAMLError) as error:
             raise ValueError(

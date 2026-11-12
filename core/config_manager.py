@@ -1,6 +1,7 @@
 import math
 from dataclasses import dataclass
 from pathlib import Path
+from core.yaml_loader import load_yaml
 
 import yaml
 
@@ -55,7 +56,7 @@ class ConfigurationManager:
             with self.config_path.open(
                 "r", encoding="utf-8"
             ) as file:
-                config = yaml.safe_load(file)
+                config = load_yaml(file)
 
         except (OSError, yaml.YAMLError) as error:
             raise ValueError(

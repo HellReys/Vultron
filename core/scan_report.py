@@ -6,6 +6,7 @@ from datetime import datetime, timezone
 from pathlib import Path
 
 from core.assessment_report import AssessmentReport
+from core.http_report import build_http_report
 from core.nvd_scan_analysis import NVDScanBatch
 from core.report_validation import validate_report
 from core.terminal_output import safe_terminal_text
@@ -87,7 +88,8 @@ class ScanReportWriter:
         summary,
         tcp_budget_used,
         tcp_budget_limit,
-        assessment=None
+        assessment=None,
+        http_results=None,
     ):
         """Create a new report without overwriting old reports."""
 
@@ -142,6 +144,13 @@ class ScanReportWriter:
             "results": results,
             "cve_assessment": assessment_section
         }
+
+        if http_results is not None:
+            report["schema_version"] = 2
+            report["http_fingerprints"] = (
+                build_http_report(http_results)
+            )
+
         validate_report(report)
 
         self.output_dir.mkdir(

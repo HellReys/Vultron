@@ -1,4 +1,5 @@
 import json
+import re
 from datetime import datetime
 
 MAX_REPORT_BYTES = 1_000_000
@@ -22,14 +23,18 @@ def validate_report(report):
         "cve_assessment",
     }
 
+
+    version = report.get("schema_version")
+
+    if type(version) is not int or version not in (1, 2):
+        raise ValueError("Unsupported schema version.")
+
+    if version == 2:
+        required = required | {"http_fingerprints"}
+
     if set(report) != required:
         raise ValueError("Invalid report fields.")
 
-    if type(report["schema_version"]) is not int:
-        raise ValueError("Invalid schema version.")
-
-    if report["schema_version"] != 1:
-        raise ValueError("Unsupported schema version.")
 
     target = report["target"]
 
@@ -153,6 +158,101 @@ def validate_report(report):
 
     if assessment.get("confirmed_vulnerabilities") != 0:
         raise ValueError("Unexpected confirmed vulnerability count.")
+
+    if version == 2:
+        http_results = report["http_fingerprints"]
+
+        if not isinstance(http_results, list):
+            raise ValueError("Invalid HTTP results.")
+
+        if len(http_results) > 2:
+            raise ValueError("Too many HTTP results.")
+
+        seen_ports = set()
+
+        expected_fields = {
+            "port",
+            "status",
+            "service",
+            "product",
+            "version",
+            "version_source",
+            "evidence_verified",
+        }
+
+        valid_products = {
+            "nginx",
+            "Apache HTTP Server",
+            "Caddy",
+        }
+
+        for item in http_results:
+            if (
+                not isinstance(item, dict)
+                or set(item) != expected_fields
+            ):
+                raise ValueError("Invalid HTTP result fields.")
+
+            port = item["port"]
+
+            if (
+                type(port) is not int
+                or port not in (80, 443)
+                or port in seen_ports
+            ):
+                raise ValueError("Invalid HTTP result port.")
+
+            seen_ports.add(port)
+
+            if item["evidence_verified"] is not False:
+                raise ValueError(
+                    "HTTP evidence cannot be verified."
+                )
+
+            if item["status"] not in ("OK", "NETWORK_ERROR"):
+                raise ValueError("Invalid HTTP status.")
+
+            if item["status"] == "NETWORK_ERROR":
+                if any(
+                    item[field] is not None
+                    for field in (
+                        "service",
+                        "product",
+                        "version",
+                        "version_source",
+                    )
+                ):
+                    raise ValueError(
+                        "Unexpected HTTP error metadata."
+                    )
+                continue
+
+            service = "HTTP" if port == 80 else "HTTPS"
+
+            if item["service"] != service:
+                raise ValueError("Invalid HTTP service.")
+
+            product = item["product"]
+            item_version = item["version"]
+            source = item["version_source"]
+
+            if (product, item_version, source) == (
+                None, None, None
+            ):
+                continue
+
+            if (
+                product not in valid_products
+                or not isinstance(item_version, str)
+                or not re.fullmatch(
+                    r"[0-9]{1,4}(?:\.[0-9]{1,4}){1,3}",
+                    item_version,
+                )
+                or source != "http_server_header_unverified"
+            ):
+                raise ValueError(
+                    "Invalid HTTP product evidence."
+                )
 
     try:
         encoded = json.dumps(

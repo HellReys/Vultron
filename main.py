@@ -193,7 +193,7 @@ def run_scan(
         f"\nTCP budget used: "
         f"{budget_used}/{budget_limit}"
     )
-
+    http_results = None
     if http_fingerprint_enabled:
         print("\n[HTTP/HTTPS FINGERPRINTING]")
 
@@ -298,6 +298,7 @@ def run_scan(
         tcp_budget_used=budget_used,
         tcp_budget_limit=budget_limit,
         assessment=assessment,
+        http_results=http_results,
     )
 
     section = reporter.last_assessment_section

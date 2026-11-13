@@ -9,8 +9,8 @@ from core.version import __version__
 
 class TestVultronVersion(unittest.TestCase):
 
-    def test_release_candidate_version(self):
-        self.assertEqual(__version__, "2.0.0rc1")
+    def test_stable_version(self):
+        self.assertEqual(__version__, "2.0.0")
 
     def test_version_argument(self):
         output = io.StringIO()
@@ -22,7 +22,7 @@ class TestVultronVersion(unittest.TestCase):
         self.assertEqual(result.exception.code, 0)
         self.assertEqual(
             output.getvalue().strip(),
-            "Vultron 2.0.0rc1",
+            "Vultron 2.0.0",
         )
 
     def test_version_does_not_start_scan(self):

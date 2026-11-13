@@ -18,7 +18,7 @@ scanning:
   max_requests: 500
 
 headers:
-  User-Agent: "Vultron/2.0.0rc1"
+  User-Agent: "Vultron/2.0.0"
   X-Bug-Bounty-Researcher: "example-researcher"
 
 tcp_scanning:

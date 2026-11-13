@@ -5,6 +5,7 @@ import requests
 
 from core.assessment_report import AssessmentReport
 from core.config_manager import ConfigurationManager
+from core.http_probe import probe_http_services
 from core.nvd_client import NVDClient, NVDError
 from core.nvd_scan_analysis import NVDScanBatch, analyze_nvd_batch
 from core.policy_engine import PolicyEngine
@@ -56,10 +57,26 @@ def create_parser():
         ),
     )
 
+    parser.add_argument(
+        "--http-fingerprint",
+        action="store_true",
+        help=(
+            "Probe open HTTP/HTTPS ports using policy-controlled "
+            "GET requests."
+        ),
+    )
+
+
     return parser
 
 
-def run_scan(program_path, target, settings_path, nvd_enabled=False):
+def run_scan(
+    program_path,
+    target,
+    settings_path,
+    nvd_enabled=False,
+    http_fingerprint_enabled=False,
+):
     """
     Run a scan through the validated program context.
 
@@ -176,6 +193,57 @@ def run_scan(program_path, target, settings_path, nvd_enabled=False):
         f"\nTCP budget used: "
         f"{budget_used}/{budget_limit}"
     )
+
+    if http_fingerprint_enabled:
+        print("\n[HTTP/HTTPS FINGERPRINTING]")
+
+        http_results = probe_http_services(
+            context,
+            summary,
+        )
+
+        if not http_results:
+            print("No open HTTP/HTTPS ports to probe.")
+
+        for item in http_results:
+            if item.status != "OK":
+                print(
+                    f"Port {item.port}: "
+                    "HTTP request failed."
+                )
+                continue
+
+            fp = item.fingerprint
+
+            print(
+                f"Port {item.port}: "
+                f"{fp.service} / {fp.confidence}"
+            )
+
+            if fp.product and fp.version:
+                product = safe_terminal_text(
+                    fp.product,
+                    max_length=100,
+                )
+
+                version = safe_terminal_text(
+                    fp.version,
+                    max_length=100,
+                )
+
+                print(
+                    f"  Unverified product: "
+                    f"{product} {version}"
+                )
+
+        print(
+            "HTTP requests used:",
+            context.request_manager.request_budget.used,
+        )
+        print(
+            "HTTP product/version evidence is unverified."
+        )
+
 
     assessment = None
 
@@ -307,6 +375,10 @@ def main(argv=None):
 
         if args.nvd:
             scan_kwargs["nvd_enabled"] = True
+
+        if args.http_fingerprint:
+            scan_kwargs["http_fingerprint_enabled"] = True
+
 
         run_scan(**scan_kwargs)
 

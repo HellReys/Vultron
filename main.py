@@ -10,6 +10,7 @@ from core.nvd_client import NVDClient, NVDError
 from core.nvd_scan_analysis import NVDScanBatch, analyze_nvd_batch
 from core.policy_engine import PolicyEngine
 from core.program_context import ProgramContext
+from core.request_budget import RequestBudgetExceeded
 from core.scan_orchestrator import ScanOrchestrator
 from core.scan_report import ScanReportWriter
 from core.terminal_output import safe_terminal_text
@@ -383,10 +384,12 @@ def main(argv=None):
 
         run_scan(**scan_kwargs)
 
+
     except (
             PermissionError,
             ValueError,
             OSError,
+            RequestBudgetExceeded,
     ) as error:
 
         message = safe_terminal_text(

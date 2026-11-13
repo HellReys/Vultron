@@ -1,6 +1,7 @@
 import unittest
 
 from core.header_manager import HeaderManager
+from core.version import __version__
 
 
 class TestHeaderManager(unittest.TestCase):
@@ -10,7 +11,7 @@ class TestHeaderManager(unittest.TestCase):
 
         self.assertEqual(
             headers["User-Agent"],
-            "Vultron/0.1"
+            f"Vultron/{__version__}"
         )
         self.assertEqual(headers["Accept"], "*/*")
 

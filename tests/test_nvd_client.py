@@ -4,6 +4,7 @@ from unittest.mock import MagicMock
 import requests
 
 from core.nvd_client import NVDClient, NVDError, NVDRateLimitError
+from core.version import __version__
 
 
 class FakeResponse:
@@ -125,6 +126,21 @@ class TestNVDClient(unittest.TestCase):
             self.client.search("OpenSSH", "9.6")
 
         self.assertEqual(len(self.client.cache), 0)
+
+    def test_user_agent_matches_application_version(self):
+        self.set_response(
+            200,
+            b'{"totalResults":0,"vulnerabilities":[]}',
+        )
+
+        self.client.search("OpenSSH", "9.6")
+
+        kwargs = self.session.get.call_args.kwargs
+
+        self.assertEqual(
+            kwargs["headers"]["User-Agent"],
+            f"Vultron/{__version__}",
+        )
 
     def test_invalid_product_rejected(self):
         with self.assertRaises(ValueError):

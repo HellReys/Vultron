@@ -1,13 +1,15 @@
 import re
 from collections.abc import Mapping
 
+from core.version import __version__
+
 
 class HeaderManager:
     """Validate and build safe program-level HTTP headers."""
 
     DEFAULT_HEADERS = {
-        "User-Agent": "Vultron/0.1",
-        "Accept": "*/*"
+        "User-Agent": f"Vultron/{__version__}",
+        "Accept": "*/*",
     }
 
     BLOCKED_HEADERS = {

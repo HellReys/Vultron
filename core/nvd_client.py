@@ -8,6 +8,7 @@ from dataclasses import dataclass
 import requests
 
 from core.rate_limiter import RateLimiter
+from core.version import __version__
 
 
 class NVDError(RuntimeError):
@@ -126,7 +127,7 @@ class NVDClient:
 
         headers = {
             "Accept": "application/json",
-            "User-Agent": "Vultron/0.1"
+            "User-Agent": f"Vultron/{__version__}",
         }
 
         if self.api_key:
